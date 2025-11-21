@@ -1,2 +1,104 @@
-venv/
+# --- Python artifacts ---
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.manifest
+*.spec
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+env_old/
+
+# --- Logs & temp files ---
+*.log
+*.tmp
+*.temp
+*.out
+*.err
+
+# --- Unit test / coverage reports ---
+.coverage
+coverage/
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+*.hypothesis/
+
+# --- Jupyter notebooks ---
+.ipynb_checkpoints/
+*.ipynb
+
+# --- IDE/editor configs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+*.orig
+
+# --- OS-specific clutter ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Git / version control ---
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# --- Package managers ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- Docker / container ---
+*.pid
+*.seed
+*.pid.lock
+docker-compose.override.yml
+
+# --- Misc build artifacts ---
+*.db
+*.sqlite
+*.sqlite3
+*.tar
+*.zip
+*.gz
+*.tgz
+*.rar
+
+# --- Security ---
+*.pem
+*.key
+*.crt
+*.cert
+*.der
+*.csr
+
+# --- Other common clutter ---
+*.bak
+*.old
+*.save
+*.swp
+*.swo
+*.tmp
+*.temp
