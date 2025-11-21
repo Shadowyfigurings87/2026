@@ -1,0 +1,5 @@
+IPV4 of HOST server = 192.168.1.170 wlan0 port 5050
+                      192.168.1.171 ep1s0 port 5000
+
+router ip on host ipv6 = 2600:1006:a132:d7cc:3993:bf1f:5b71:730c
+                  ipv4 = 97.163.231.193
