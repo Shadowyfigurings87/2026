@@ -1,7 +1,7 @@
 import socket
 import time
 
-HOST = "192.168.1.171"   # Host machine ep1s0
+HOST = "97.163.231.193"   # Host machine ep1s0
 PORT = 5000              # Listening port on host
 TIMEOUT = 300            # 5 minutes in seconds
 
