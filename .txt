@@ -3,3 +3,10 @@ IPV4 of HOST server = 192.168.1.170 wlan0 port 5050
 
 router ip on host ipv6 = 2600:1006:a132:d7cc:3993:bf1f:5b71:730c
                   ipv4 = 97.163.231.193
+
+node server ipv4 172.20.10.2/28
+            ipv6 global 2600:1006:b133:32d5:3b00:1e03:c8a2:d7ef/64
+            ipv6 link-local: fe80::139e:c8ac:47ef:1b9b/64
+
+node browser shows ipv4 174.239.81.143
+                    ipv6 2600:1006:b133:32d5:3b00:1e03:c8a2:d7ef
