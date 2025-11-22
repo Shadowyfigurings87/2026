@@ -1,26 +1,25 @@
 import socket
 import time
 
-HOST = "97.163.231.193"   # Host machine ep1s0
-PORT = 5000              # Listening port on host
-TIMEOUT = 300            # 5 minutes in seconds
+HOST = "97.163.231.193"
+PORT = 5000
+TIMEOUT = 300  # 5 minutes
 
 def persistent_ping():
-    start_time = time.time()
-    while time.time() - start_time < TIMEOUT:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(5)  # timeout for each attempt
-                print(f"Attempting connection to {HOST}:{PORT}...")
-                s.connect((HOST, PORT))
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(5)
+        print(f"Connecting to {HOST}:{PORT}...")
+        s.connect((HOST, PORT))
+        start_time = time.time()
+        while time.time() - start_time < TIMEOUT:
+            try:
                 s.sendall(b"ping")
                 data = s.recv(1024).decode()
                 print(f"Stardate log: {HOST}:{PORT} → {data.strip()}")
-                return  # exit once successful
-        except Exception as e:
-            print(f"Connection failed: {e}")
-            time.sleep(5)  # wait before retrying
-    print("Persistent attempts ended after 5 minutes.")
+                time.sleep(5)  # wait before sending next ping
+            except Exception as e:
+                print(f"Connection error: {e}")
+                break  # exit if connection fails
 
 if __name__ == "__main__":
     persistent_ping()
