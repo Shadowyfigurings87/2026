@@ -1,7 +1,7 @@
 import socket
 
 HOST = "0.0.0.0"   # Listen on all interfaces
-PORT = 443  # Must match the port your ping client uses
+PORT = 5000  # Must match the port your ping client uses
 
 def start_pong_server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
