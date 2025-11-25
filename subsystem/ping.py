@@ -1,8 +1,8 @@
 import socket
 import time
 
-HOST = "97.163.231.193"
-PORT = 5000
+SERVER_HOST = "7.tcp.ngrok.io"
+SERVER_PORT = 21291
 TIMEOUT = 300  # 5 minutes
 
 def persistent_ping():
