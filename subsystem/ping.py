@@ -1,8 +1,9 @@
 import socket
 import time
 
-SERVER_HOST = "7.tcp.ngrok.io"
-SERVER_PORT = 21291
+# Define your ngrok endpoint here
+HOST = "0.tcp.ngrok.io"   # replace with ngrok host
+PORT = 12345              # replace with ngrok port
 TIMEOUT = 300  # 5 minutes
 
 def persistent_ping():
@@ -16,10 +17,10 @@ def persistent_ping():
                 s.sendall(b"ping")
                 data = s.recv(1024).decode()
                 print(f"Stardate log: {HOST}:{PORT} → {data.strip()}")
-                time.sleep(5)  # wait before sending next ping
+                time.sleep(5)
             except Exception as e:
                 print(f"Connection error: {e}")
-                break  # exit if connection fails
+                break
 
 if __name__ == "__main__":
     persistent_ping()
