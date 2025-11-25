@@ -2,7 +2,7 @@ import socket
 import time
 
 HOST = "97.163.231.193"
-PORT = 5000
+PORT = 443
 TIMEOUT = 300  # 5 minutes
 
 def persistent_ping():
