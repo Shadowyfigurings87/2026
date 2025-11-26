@@ -1,3 +1,9 @@
+from gui.arduino import serial_queue
+import socket, time
+
+HOST = "2.tcp.ngrok.io"
+PORT = 11733
+
 def run_forwarder():
     ser = get_serial()
 
