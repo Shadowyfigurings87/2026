@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-import serial, time, threading
+import serial, time, threading, queue
 import tkinter.font as tkfont
 
 PORT = "/dev/ttyACM0"   # adjust to your Arduino port
@@ -9,9 +9,15 @@ BAUD = 9600
 # Open serial connection once
 ser = serial.Serial(PORT, BAUD, timeout=1)
 
+# Shared queue for serial lines
+serial_queue = queue.Queue()
+
 def get_serial():
     return ser
-    
+
+def get_queue():
+    return serial_queue
+
 def send_pwm():
     value = pwm_scale.get()
     cmd = f"PWM:{value}\n"
@@ -33,6 +39,9 @@ def read_serial():
         try:
             line = ser.readline().decode().strip()
             if line:
+                # publish to queue for forwarder
+                serial_queue.put(line)
+                # update GUI
                 rpm_var.set(line)
                 log(f"Received {line}")
         except Exception as e:
