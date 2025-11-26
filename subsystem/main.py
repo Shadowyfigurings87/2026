@@ -1,10 +1,10 @@
 import threading
-from ping import run_ping
 from gui import arduino
+from serial_forwarder import run_forwarder
 
 def main():
-    # Run ping in background
-    t1 = threading.Thread(target=run_ping, daemon=True)
+    # Start serial forwarder in background
+    t1 = threading.Thread(target=run_forwarder, daemon=True)
     t1.start()
 
     # Launch Arduino GUI (blocking)

@@ -1,26 +1,29 @@
 import socket
 
-HOST = "0.0.0.0"   # Listen on all interfaces
-PORT = 5000  # Must match the port your ping client uses
+HOST = "0.0.0.0"   # listen on all interfaces
+PORT = 5000        # must match the port you expose with ngrok
 
-def start_pong_server():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.listen()
-        print(f"Pong server listening on {HOST}:{PORT}")
-        
+def run_receiver():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((HOST, PORT))
+    s.listen(1)
+    print(f"Listening on {HOST}:{PORT}...")
+
+    conn, addr = s.accept()
+    print(f"Client connected from {addr}")
+
+    try:
         while True:
-            conn, addr = s.accept()
-            print(f"Connection from {addr}")
-            with conn:
-                while True:
-                    data = conn.recv(1024).decode().strip().lower()
-                    if not data:
-                        break
-                    if data == "ping":
-                        conn.sendall(b"pong")
-                    else:
-                        conn.sendall(b"unknown command")
+            data = conn.recv(1024).decode().strip()
+            if not data:
+                break
+            print(f"Arduino → Host: {data}")
+            # Here you could also write to a file, database, or GUI
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        conn.close()
+        s.close()
 
 if __name__ == "__main__":
-    start_pong_server()
+    run_receiver()
