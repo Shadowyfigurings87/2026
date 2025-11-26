@@ -1,11 +1,12 @@
-from gui.arduino import serial_queue
-import socket, time
+import socket, time, threading
+from gui.arduino import get_queue, get_serial
 
 HOST = "2.tcp.ngrok.io"
 PORT = 11733
 
 def run_forwarder():
-    ser = get_serial()
+    q = get_queue()       # consume Arduino lines from queue
+    ser = get_serial()    # still need serial object to send commands back
 
     def connect_socket():
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -15,6 +16,7 @@ def run_forwarder():
 
     s = connect_socket()
 
+    # Thread to listen for host commands and relay to Arduino
     def listen_for_commands(sock):
         while True:
             try:
@@ -28,12 +30,12 @@ def run_forwarder():
 
     threading.Thread(target=listen_for_commands, args=(s,), daemon=True).start()
 
+    # Main loop: forward Arduino telemetry from queue to host
     while True:
         try:
-            line = ser.readline().decode().strip()
-            if line:
-                s.sendall((line + "\n").encode())
-                print(f"Arduino → Host: {line}")
+            line = q.get()   # blocks until a line is available
+            s.sendall((line + "\n").encode())
+            print(f"Arduino → Host: {line}")
         except (BrokenPipeError, ConnectionResetError):
             print("Connection lost, reconnecting...")
             time.sleep(2)
