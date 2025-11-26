@@ -1,8 +1,8 @@
 from gui.arduino import serial_queue
 import socket, time
 
-HOST = "0.tcp.ngrok.io"
-PORT = 12958
+HOST = "6.tcp.ngrok.io"
+PORT = 18839
 
 def run_forwarder():
     def connect_socket():
