@@ -1,12 +1,10 @@
-import socket
-import time
+import socket, time
 
-# Use the ngrok endpoint exactly as shown in the dashboard
-HOST = "0.tcp.ngrok.io"     # replace with ngrok host
-PORT = 12958                # replace with ngrok port
-TIMEOUT = 300  # 5 minutes
+HOST = "0.tcp.ngrok.io"
+PORT = 12958
+TIMEOUT = 300
 
-def persistent_ping():
+def run_ping():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(5)
         print(f"Connecting to {HOST}:{PORT}...")
@@ -21,6 +19,3 @@ def persistent_ping():
             except Exception as e:
                 print(f"Connection error: {e}")
                 break
-
-if __name__ == "__main__":
-    persistent_ping()
