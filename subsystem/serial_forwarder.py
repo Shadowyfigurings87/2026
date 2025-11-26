@@ -1,12 +1,11 @@
-import serial, socket, time
+import socket, time
+from gui.arduino import get_serial
 
-ARDUINO_PORT = "/dev/ttyACM0"   # adjust to your client’s Arduino port
-BAUD = 9600
 HOST = "0.tcp.ngrok.io"
-PORT = 12958                    # ngrok port
+PORT = 12958
 
 def run_forwarder():
-    ser = serial.Serial(ARDUINO_PORT, BAUD, timeout=1)
+    ser = get_serial()
 
     def connect_socket():
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -27,6 +26,3 @@ def run_forwarder():
             time.sleep(2)
             s.close()
             s = connect_socket()
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            time.sleep(2)
