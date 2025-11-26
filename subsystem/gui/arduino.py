@@ -9,6 +9,9 @@ BAUD = 9600
 # Open serial connection once
 ser = serial.Serial(PORT, BAUD, timeout=1)
 
+def get_serial():
+    return ser
+    
 def send_pwm():
     value = pwm_scale.get()
     cmd = f"PWM:{value}\n"
