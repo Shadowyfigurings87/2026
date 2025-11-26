@@ -3,7 +3,7 @@ import time
 
 # Use the ngrok endpoint exactly as shown in the dashboard
 SERVER_HOST = "0.tcp.ngrok.io"
-SERVER_PORT = 18674
+SERVER_PORT = 12958
 TIMEOUT = 300  # 5 minutes
 
 def persistent_ping():
