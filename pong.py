@@ -40,9 +40,34 @@ def send_pwm(value):
         host_conn.sendall(cmd)
         log(f"Sent {cmd.strip()}")
 
-def toggle_led(index):
-    state = led_states[index].get()
-    cmd = f"LED:{index}:{'1' if state else '0'}\n".encode()
+# --- Actuator control functions ---
+def send_actuator_forward(speed):
+    cmd = f"ACT:FWD:{speed}\n".encode()
+    if host_conn:
+        host_conn.sendall(cmd)
+        log(f"Sent {cmd.strip()}")
+
+def send_actuator_reverse(speed):
+    cmd = f"ACT:REV:{speed}\n".encode()
+    if host_conn:
+        host_conn.sendall(cmd)
+        log(f"Sent {cmd.strip()}")
+
+def send_actuator_stop():
+    cmd = "ACT:STOP\n".encode()
+    if host_conn:
+        host_conn.sendall(cmd)
+        log(f"Sent {cmd.strip()}")
+
+# --- Direction control functions (Optocoupler F/R) ---
+def send_dir_forward():
+    cmd = "DIR:FWD\n".encode()
+    if host_conn:
+        host_conn.sendall(cmd)
+        log(f"Sent {cmd.strip()}")
+
+def send_dir_reverse():
+    cmd = "DIR:REV\n".encode()
     if host_conn:
         host_conn.sendall(cmd)
         log(f"Sent {cmd.strip()}")
@@ -62,24 +87,37 @@ def update_rpm_display():
     root.after(1000, update_rpm_display)
 
 root = tk.Tk()
-root.title("Host Motor & LED Control")
+root.title("Host Motor & Actuator Control")
 
 rpm_var = tk.StringVar(value="Avg RPM:0")
 ttk.Label(root, textvariable=rpm_var, font=("Arial", 14)).pack(pady=10)
 
+# --- Motor PWM ---
 pwm_scale = tk.Scale(root, from_=0, to=255, orient=tk.HORIZONTAL,
                      label="PWM Control", command=lambda v: send_pwm(int(v)))
 pwm_scale.pack(fill="x", padx=10, pady=10)
 
-ttk.Label(root, text="LED Controls").pack(pady=(12,6))
-led_states = []
-for i in range(6):
-    var = tk.BooleanVar()
-    chk = tk.Checkbutton(root, text=f"LED {i}", variable=var,
-                         command=lambda i=i: toggle_led(i))
-    chk.pack(anchor="w", padx=10)
-    led_states.append(var)
+# --- Actuator Controls ---
+ttk.Label(root, text="Actuator Control").pack(pady=(12,6))
+act_speed_scale = tk.Scale(root, from_=0, to=255, orient=tk.HORIZONTAL,
+                           label="Actuator Speed")
+act_speed_scale.set(128)
+act_speed_scale.pack(fill="x", padx=10)
 
+btn_frame = ttk.Frame(root)
+btn_frame.pack(pady=8)
+ttk.Button(btn_frame, text="Forward", command=lambda: send_actuator_forward(act_speed_scale.get())).pack(side="left", padx=5)
+ttk.Button(btn_frame, text="Reverse", command=lambda: send_actuator_reverse(act_speed_scale.get())).pack(side="left", padx=5)
+ttk.Button(btn_frame, text="Stop", command=send_actuator_stop).pack(side="left", padx=5)
+
+# --- Direction Controls (Optocoupler F/R) ---
+ttk.Label(root, text="Direction Control (Optocoupler)").pack(pady=(12,6))
+dir_frame = ttk.Frame(root)
+dir_frame.pack(pady=8)
+ttk.Button(dir_frame, text="Forward Dir", command=send_dir_forward).pack(side="left", padx=5)
+ttk.Button(dir_frame, text="Reverse Dir", command=send_dir_reverse).pack(side="left", padx=5)
+
+# --- Log Box ---
 log_box = tk.Text(root, height=10, width=60)
 log_box.pack(fill="both", expand=True, padx=10, pady=(6,10))
 
