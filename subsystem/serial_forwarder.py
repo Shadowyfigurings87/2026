@@ -1,8 +1,8 @@
 import socket, time, threading
 from gui.arduino import get_queue, get_serial
 
-HOST = "0.tcp.ngrok.io"
-PORT = 15725
+HOST = "8.tcp.ngrok.io"
+PORT = 10520
 
 def run_forwarder():
     q = get_queue()       # consume Arduino lines from queue
