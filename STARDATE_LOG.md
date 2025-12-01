@@ -5,4 +5,4 @@
 - Ritual correction: save rover control scripts as .ino in matching folder, embed Stardate comments inline.
 
 Stardate 2025.12.01 —
-Confirmation: current format already functions as a database. Headings = record IDs, bullets = fields, order = index.
+Confirmation: current format already functions as a database. Headings = record IDs, bullets = fields, order = index..
