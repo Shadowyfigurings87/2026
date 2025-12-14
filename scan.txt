@@ -1,0 +1,58 @@
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+
+ CH  2 ][ Elapsed: 5 mins ][ 2025-12-09 01:55                                       
+                                                                                    
+ BSSID              PWR  Beacons    #Data, #/s  CH   MB   ENC CIPHER  AUTH ESSID    
+                                                                                    
+ 4A:BD:CE:1B:45:13  -65        1        0    0  44 1733   WPA2 CCMP   MGT  Xfinity  
+ 4A:BD:CE:1B:45:11  -69        1        0    0  44 1733   OPN              xfinityw 
+ 4A:BD:CE:1B:45:17  -57        1        0    0  44 1733   WPA2 CCMP   PSK  pamela   
+ 0E:FE:7B:67:8A:FD  -70        2        0    0  44 1733   WPA2 CCMP   PSK  <length: 
+ B0:93:5B:C7:06:B5  -73        2        0    0 149 1170   WPA2 CCMP   PSK  DHerring 
+ F2:93:5B:C7:06:B5  -73        2        0    0 149 1170   WPA2 CCMP   MGT  <length: 
+ C2:93:5B:C7:06:B5  -73        2        0    0 149 1170   OPN              xfinityw 
+ 0E:FE:7B:60:8A:FE  -61        2        0    0   1  260   WPA2 CCMP   MGT  <length: 
+ 4A:BD:CE:14:45:13  -58        2        0    0  11  260   WPA2 CCMP   MGT  <length: 
+ 26:05:01:E7:FF:48  -65        2        0    0  11  195   WPA2 CCMP   MGT  <length: 
+ 4A:BD:CE:1B:45:14  -60        1        1    0  44 1733   WPA2 CCMP   MGT  <length: 
+ 4A:BD:CE:1B:45:12  -58        1        1    0  44 1733   WPA2 CCMP   PSK  <length: 
+ 0A:A7:C0:31:12:BC  -75        0        0    0  44 1733   OPN              xfinityw 
+ 22:05:01:E7:FF:50  -59        2        0    0  36 1170   WPA2 CCMP   PSK  <length: 
+ 1E:05:01:E7:FF:50  -57        2        0    0  36 1170   WPA2 CCMP   MGT  <length: 
+ 16:05:01:E7:FF:50  -56        2        0    0  36 1170   WPA2 CCMP   PSK  <length: 
+ 26:05:01:E7:FF:50  -57        2        0    0  36 1170   OPN              xfinityw 
+ 1A:05:01:E7:FF:50  -75        0        0    0  36 1170   WPA2 CCMP   MGT  Xfinity  
+ 10:05:01:E7:FF:50  -54        2        1    0  36 1170   WPA2 CCMP   PSK  Khamyra1 
+ 4A:BD:CE:14:45:16  -59        2        0    0  11  260   WPA2 CCMP   PSK  pamela   
+ 04:09:86:48:1A:CB    2        9        0    0  11  260   WPA2 CCMP   PSK  Verizon_ 
+ 54:2B:57:4B:20:F7  -23       10        8    0  11  130   WPA2 CCMP   PSK  <length: 
+ AE:70:5D:CD:9B:B7  -28        4        0    0   1  260   WPA2 CCMP   PSK  <length: 
+ 76:74:79:8E:DE:88  -23       11       12    0   6  130   WPA3 CCMP   SAE  iPhone   
+ B6:70:5D:CD:9B:B7  -34        6        0    0   1  260   WPA2 CCMP   MGT  <length: 
+ 0E:FE:7B:60:8A:FA  -59        3        0    0   1  260   WPA2 CCMP   PSK  <length: 
+ 0E:FE:7B:60:8A:F9  -62        3        3    0   1  260   WPA3 CCMP   SAE  The Tayl 
+ A8:70:5D:CD:9B:B7  -29        5        0    0   1  260   WPA2 CCMP   PSK  daviddee 
+                                                                                    
+ BSSID              STATION            PWR    Rate    Lost   Frames  Notes  Probes  
+                                                                                    
+ 4A:BD:CE:1B:45:11  6E:8C:A3:F6:0D:E1  -69    0 - 6e     0        2                 
+ 54:2B:57:4B:20:F7  54:2B:57:4D:17:67   -1   24e- 0      0        7                 
+ 76:74:79:8E:DE:88  20:C1:9B:CD:08:BB   -5   24e- 1      0        9         iPhone  
+ 76:74:79:8E:DE:88  E4:5F:01:40:61:3B  -10   24e-24e     0        7                 
+ (not associated)   6A:74:14:F9:D0:2D  -39    0 - 1     27        4                 
+ (not associated)   5E:01:2C:07:8D:52  -43    0 - 1      0        2                 
+ (not associated)   C6:4D:55:94:BA:E3  -47    0 - 1      0        1                 
+Quitting...                                                                         
+-bash: /home/balthazaar87/2026/scan.txt: Permission denied                          
+ebecenezzer87@raspberrypi:~ $ sudo cat /home/balthazaar87/2026/scan-01.csv | sudo tee /home/balthazaar87/2026/scan.txt > /dev/null
+ebecenezzer87@raspberrypi:~ $ 
