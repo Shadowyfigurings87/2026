@@ -1,58 +1,333 @@
-                                                                                    
-                                                                                    
-                                                                                    
-                                                                                    
-                                                                                    
-                                                                                    
-                                                                                    
-                                                                                    
-                                                                                    
-                                                                                    
-                                                                                    
 
- CH  2 ][ Elapsed: 5 mins ][ 2025-12-09 01:55                                       
-                                                                                    
- BSSID              PWR  Beacons    #Data, #/s  CH   MB   ENC CIPHER  AUTH ESSID    
-                                                                                    
- 4A:BD:CE:1B:45:13  -65        1        0    0  44 1733   WPA2 CCMP   MGT  Xfinity  
- 4A:BD:CE:1B:45:11  -69        1        0    0  44 1733   OPN              xfinityw 
- 4A:BD:CE:1B:45:17  -57        1        0    0  44 1733   WPA2 CCMP   PSK  pamela   
- 0E:FE:7B:67:8A:FD  -70        2        0    0  44 1733   WPA2 CCMP   PSK  <length: 
- B0:93:5B:C7:06:B5  -73        2        0    0 149 1170   WPA2 CCMP   PSK  DHerring 
- F2:93:5B:C7:06:B5  -73        2        0    0 149 1170   WPA2 CCMP   MGT  <length: 
- C2:93:5B:C7:06:B5  -73        2        0    0 149 1170   OPN              xfinityw 
- 0E:FE:7B:60:8A:FE  -61        2        0    0   1  260   WPA2 CCMP   MGT  <length: 
- 4A:BD:CE:14:45:13  -58        2        0    0  11  260   WPA2 CCMP   MGT  <length: 
- 26:05:01:E7:FF:48  -65        2        0    0  11  195   WPA2 CCMP   MGT  <length: 
- 4A:BD:CE:1B:45:14  -60        1        1    0  44 1733   WPA2 CCMP   MGT  <length: 
- 4A:BD:CE:1B:45:12  -58        1        1    0  44 1733   WPA2 CCMP   PSK  <length: 
- 0A:A7:C0:31:12:BC  -75        0        0    0  44 1733   OPN              xfinityw 
- 22:05:01:E7:FF:50  -59        2        0    0  36 1170   WPA2 CCMP   PSK  <length: 
- 1E:05:01:E7:FF:50  -57        2        0    0  36 1170   WPA2 CCMP   MGT  <length: 
- 16:05:01:E7:FF:50  -56        2        0    0  36 1170   WPA2 CCMP   PSK  <length: 
- 26:05:01:E7:FF:50  -57        2        0    0  36 1170   OPN              xfinityw 
- 1A:05:01:E7:FF:50  -75        0        0    0  36 1170   WPA2 CCMP   MGT  Xfinity  
- 10:05:01:E7:FF:50  -54        2        1    0  36 1170   WPA2 CCMP   PSK  Khamyra1 
- 4A:BD:CE:14:45:16  -59        2        0    0  11  260   WPA2 CCMP   PSK  pamela   
- 04:09:86:48:1A:CB    2        9        0    0  11  260   WPA2 CCMP   PSK  Verizon_ 
- 54:2B:57:4B:20:F7  -23       10        8    0  11  130   WPA2 CCMP   PSK  <length: 
- AE:70:5D:CD:9B:B7  -28        4        0    0   1  260   WPA2 CCMP   PSK  <length: 
- 76:74:79:8E:DE:88  -23       11       12    0   6  130   WPA3 CCMP   SAE  iPhone   
- B6:70:5D:CD:9B:B7  -34        6        0    0   1  260   WPA2 CCMP   MGT  <length: 
- 0E:FE:7B:60:8A:FA  -59        3        0    0   1  260   WPA2 CCMP   PSK  <length: 
- 0E:FE:7B:60:8A:F9  -62        3        3    0   1  260   WPA3 CCMP   SAE  The Tayl 
- A8:70:5D:CD:9B:B7  -29        5        0    0   1  260   WPA2 CCMP   PSK  daviddee 
-                                                                                    
- BSSID              STATION            PWR    Rate    Lost   Frames  Notes  Probes  
-                                                                                    
- 4A:BD:CE:1B:45:11  6E:8C:A3:F6:0D:E1  -69    0 - 6e     0        2                 
- 54:2B:57:4B:20:F7  54:2B:57:4D:17:67   -1   24e- 0      0        7                 
- 76:74:79:8E:DE:88  20:C1:9B:CD:08:BB   -5   24e- 1      0        9         iPhone  
- 76:74:79:8E:DE:88  E4:5F:01:40:61:3B  -10   24e-24e     0        7                 
- (not associated)   6A:74:14:F9:D0:2D  -39    0 - 1     27        4                 
- (not associated)   5E:01:2C:07:8D:52  -43    0 - 1      0        2                 
- (not associated)   C6:4D:55:94:BA:E3  -47    0 - 1      0        1                 
-Quitting...                                                                         
--bash: /home/balthazaar87/2026/scan.txt: Permission denied                          
-ebecenezzer87@raspberrypi:~ $ sudo cat /home/balthazaar87/2026/scan-01.csv | sudo tee /home/balthazaar87/2026/scan.txt > /dev/null
-ebecenezzer87@raspberrypi:~ $ 
+ssh -p 13375 balthazaar1987@8.tcp.ngrok.io "sudo ./scan.py" \
+    | python3 /home/zachariah/2026/scan/ml_ingest.py
+
+sqlite3 /home/zachariah/2026/scan/data/rf_archive.db
+
+
+INSERT INTO sensor_components (sensor_id, mac, role)
+VALUES ('rover1', '<MAC>', '<role>');
+INSERT INTO sensor_components (sensor_id, mac, role)
+VALUES ('rover1', '11:22:33:44:55:66', 'pi1');
+
+INSERT INTO sensor_components (sensor_id, mac, role)
+VALUES ('rover1', '22:33:44:55:66:77', 'pi2');
+
+INSERT INTO sensor_components (sensor_id, mac, role)
+VALUES ('rover1', '33:44:55:66:77:88', 'hotspot');
+
+INSERT INTO sensor_components (sensor_id, mac, role)
+VALUES ('rover1', '44:55:66:77:88:99', 'alfa');
+#!/usr/bin/env python3
+import os
+import json
+import time
+import threading
+import subprocess
+from datetime import datetime, timezone
+from scapy.all import sniff, Dot11, Dot11Elt, RadioTap
+
+# ---------------------------------------------------------
+# CONFIGURATION
+# ---------------------------------------------------------
+INTERFACE = "wlan1"
+
+ALL_CHANNELS = [
+    # 2.4 GHz
+    1,2,3,4,5,6,7,8,9,10,11,
+    # 5 GHz (non-DFS)
+    36,40,44,48,
+    149,153,157,161,165
+]
+
+FILTER_TYPES = ["mgmt", "ctrl", "data"]
+
+# Phase dwell times
+DISCOVERY_DWELL = 0.15
+FOCUS_DWELL     = 0.6
+VIGIL_DWELL     = 0.25
+
+phase = "discovery"
+stop_flag = False
+current_channel = None
+ACTIVE_CHANNELS = []
+channel_activity = {}
+
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+def mac_or_none(addr):
+    return addr if addr else None
+
+def extract_ssid(pkt):
+    if not pkt.haslayer(Dot11Elt):
+        return None
+    elt = pkt[Dot11Elt]
+    while isinstance(elt, Dot11Elt):
+        if elt.ID == 0:
+            try:
+                return elt.info.decode(errors="ignore")
+            except:
+                return None
+        elt = elt.payload
+    return None
+
+def extract_channel(pkt):
+    if not pkt.haslayer(Dot11Elt):
+        return None
+    elt = pkt[Dot11Elt]
+    while isinstance(elt, Dot11Elt):
+        if elt.ID == 3 and len(elt.info) == 1:
+            try:
+                return int(elt.info[0])
+            except:
+                return None
+        elt = elt.payload
+    return None
+
+def extract_radiotap_metadata(pkt):
+    meta = {"rssi": None, "rate": None, "channel_freq": None, "channel_flags": None}
+    if not pkt.haslayer(RadioTap):
+        return meta
+
+    rt = pkt[RadioTap]
+
+    if hasattr(rt, "dBm_AntSignal"):
+        try: meta["rssi"] = int(rt.dBm_AntSignal)
+        except: pass
+
+    if hasattr(rt, "Rate"):
+        try: meta["rate"] = float(rt.Rate)
+        except: pass
+
+    if hasattr(rt, "ChannelFrequency"):
+        try: meta["channel_freq"] = int(rt.ChannelFrequency)
+        except: pass
+
+    if hasattr(rt, "ChannelFlags"):
+        try: meta["channel_flags"] = int(rt.ChannelFlags)
+        except: pass
+
+    return meta
+
+def classify_frame(pkt):
+    if not pkt.haslayer(Dot11):
+        return "unknown", "unknown", None
+
+    d11 = pkt[Dot11]
+    t = d11.type
+    s = d11.subtype
+
+    to_ds = getattr(d11, "toDS", 0)
+    from_ds = getattr(d11, "fromDS", 0)
+
+    if to_ds == 0 and from_ds == 0:
+        direction = "ad_hoc"
+    elif to_ds == 1 and from_ds == 0:
+        direction = "to_ds"
+    elif to_ds == 0 and from_ds == 1:
+        direction = "from_ds"
+    else:
+        direction = "inter_ds"
+
+    if t == 0:
+        frame_type = "management"
+        subtype_map = {
+            8: "beacon",
+            4: "probe_req",
+            5: "probe_resp",
+            0: "assoc_req",
+            1: "assoc_resp",
+            10: "disassoc",
+            11: "auth",
+            12: "deauth",
+        }
+        subtype = subtype_map.get(s, f"mgmt_{s}")
+
+    elif t == 1:
+        frame_type = "control"
+        subtype_map = {
+            11: "rts",
+            12: "cts",
+            13: "ack",
+            8: "block_ack",
+            9: "block_ack_req",
+        }
+        subtype = subtype_map.get(s, f"ctrl_{s}")
+
+    elif t == 2:
+        frame_type = "data"
+        subtype_map = {
+            8: "qos_data",
+            4: "null",
+            12: "qos_null",
+        }
+        subtype = subtype_map.get(s, f"data_{s}")
+
+    else:
+        frame_type = "unknown"
+        subtype = "unknown"
+
+    return frame_type, subtype, direction
+
+def frame_filter(pkt):
+    if not pkt.haslayer(Dot11):
+        return False
+    t = pkt[Dot11].type
+    return (
+        (t == 0 and "mgmt" in FILTER_TYPES) or
+        (t == 1 and "ctrl" in FILTER_TYPES) or
+        (t == 2 and "data" in FILTER_TYPES)
+    )
+
+# ---------------------------------------------------------
+# Channel Activity Scoring
+# ---------------------------------------------------------
+def record_activity(ch, frame_type, subtype):
+    if ch is None:
+        return
+    score = 0
+    if frame_type == "management":
+        if subtype in ("beacon", "probe_req", "assoc_req", "probe_resp"):
+            score = 3
+        else:
+            score = 1
+    elif frame_type == "data":
+        score = 2
+
+    if score > 0:
+        channel_activity[ch] = channel_activity.get(ch, 0) + score
+
+# ---------------------------------------------------------
+# Channel Hopper Thread
+# ---------------------------------------------------------
+def set_channel(ch):
+    global current_channel
+    current_channel = ch
+    subprocess.call(
+        ["sudo", "iw", "dev", INTERFACE, "set", "channel", str(ch)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+def channel_hopper():
+    global phase, ACTIVE_CHANNELS, stop_flag
+
+    while not stop_flag:
+        if phase == "discovery":
+            dwell = DISCOVERY_DWELL
+            chans = ALL_CHANNELS
+
+        elif phase == "focus":
+            dwell = FOCUS_DWELL
+            chans = ACTIVE_CHANNELS if ACTIVE_CHANNELS else ALL_CHANNELS
+
+        else:  # vigil
+            dwell = VIGIL_DWELL
+            chans = ALL_CHANNELS
+
+        for ch in chans:
+            if stop_flag:
+                break
+            set_channel(ch)
+            time.sleep(dwell)
+
+# ---------------------------------------------------------
+# Packet Handler
+# ---------------------------------------------------------
+def handle_packet(pkt):
+    global phase
+
+    if not pkt.haslayer(Dot11):
+        return
+
+    ts = datetime.now(timezone.utc).isoformat()
+
+    d11 = pkt[Dot11]
+    src = mac_or_none(d11.addr2)
+    dst = mac_or_none(d11.addr1)
+    bssid = mac_or_none(d11.addr3)
+
+    frame_type, subtype, direction = classify_frame(pkt)
+
+    ssid = extract_ssid(pkt) if frame_type == "management" else None
+    ch = extract_channel(pkt) if frame_type == "management" else None
+
+    rt_meta = extract_radiotap_metadata(pkt)
+
+    if phase in ("discovery", "vigil"):
+        record_activity(ch, frame_type, subtype)
+
+    record = {
+        "source": "wifi",
+        "iface": INTERFACE,
+        "timestamp": ts,
+        "frame_type": frame_type,
+        "subtype": subtype,
+        "direction": direction,
+        "src": src,
+        "dst": dst,
+        "bssid": bssid,
+        "ssid": ssid,
+        "channel": ch if ch else current_channel,
+        "rssi": rt_meta["rssi"],
+        "rate": rt_meta["rate"],
+        "channel_freq": rt_meta["channel_freq"],
+        "channel_flags": rt_meta["channel_flags"],
+        "summary": pkt.summary(),
+    }
+
+    print(json.dumps(record), flush=True)
+
+# ---------------------------------------------------------
+# Sniffer Loop
+# ---------------------------------------------------------
+def sniffer_loop():
+    while not stop_flag:
+        sniff(
+            iface=INTERFACE,
+            prn=handle_packet,
+            lfilter=frame_filter,
+            store=False,
+            timeout=1,
+            count=50
+        )
+
+# ---------------------------------------------------------
+# Main Sovereign Routine
+# ---------------------------------------------------------
+def main():
+    global phase, ACTIVE_CHANNELS
+
+    print("[+] Sovereign RF Scanner Activated")
+    print("[+] Phase 1: Discovery Sweep")
+
+    hopper_thread = threading.Thread(target=channel_hopper, daemon=True)
+    hopper_thread.start()
+
+    sniffer_thread = threading.Thread(target=sniffer_loop, daemon=True)
+    sniffer_thread.start()
+
+    # Discovery period
+    time.sleep(20)
+
+    # Select top channels
+    ACTIVE_CHANNELS = [
+        ch for ch, _ in sorted(channel_activity.items(), key=lambda kv: kv[1], reverse=True)[:5]
+    ]
+
+    print(f"[+] Discovery complete. Active channels: {ACTIVE_CHANNELS}")
+
+    # Phase 2: Focus
+    phase = "focus"
+    print("[+] Phase 2: Deep Capture on Active Channels")
+    time.sleep(60)
+
+    # Phase 3: Vigilance
+    phase = "vigil"
+    print("[+] Phase 3: Broad Spectrum Vigilance")
+    while True:
+        time.sleep(5)
+
+if __name__ == "__main__":
+    main()
