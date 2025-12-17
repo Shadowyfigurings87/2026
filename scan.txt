@@ -1,25 +1,9 @@
-
-ssh -p 13375 balthazaar1987@8.tcp.ngrok.io "sudo ./scan.py" \
-    | python3 /home/zachariah/2026/scan/ml_ingest.py
+ ssh -p 15166 balthazaar1987@6.tcp.ngrok.io "/usr/local/bin/runscanner" | python3 manager.py
 
 sqlite3 /home/zachariah/2026/scan/data/rf_archive.db
-
-
-INSERT INTO sensor_components (sensor_id, mac, role)
-VALUES ('rover1', '<MAC>', '<role>');
-INSERT INTO sensor_components (sensor_id, mac, role)
-VALUES ('rover1', '11:22:33:44:55:66', 'pi1');
-
-INSERT INTO sensor_components (sensor_id, mac, role)
-VALUES ('rover1', '22:33:44:55:66:77', 'pi2');
-
-INSERT INTO sensor_components (sensor_id, mac, role)
-VALUES ('rover1', '33:44:55:66:77:88', 'hotspot');
-
-INSERT INTO sensor_components (sensor_id, mac, role)
-VALUES ('rover1', '44:55:66:77:88:99', 'alfa');
 #!/usr/bin/env python3
 import os
+import sys
 import json
 import time
 import threading
@@ -59,6 +43,7 @@ channel_activity = {}
 def mac_or_none(addr):
     return addr if addr else None
 
+
 def extract_ssid(pkt):
     if not pkt.haslayer(Dot11Elt):
         return None
@@ -71,6 +56,7 @@ def extract_ssid(pkt):
                 return None
         elt = elt.payload
     return None
+
 
 def extract_channel(pkt):
     if not pkt.haslayer(Dot11Elt):
@@ -85,31 +71,45 @@ def extract_channel(pkt):
         elt = elt.payload
     return None
 
+
 def extract_radiotap_metadata(pkt):
     meta = {"rssi": None, "rate": None, "channel_freq": None, "channel_flags": None}
+
     if not pkt.haslayer(RadioTap):
         return meta
 
     rt = pkt[RadioTap]
 
     if hasattr(rt, "dBm_AntSignal"):
-        try: meta["rssi"] = int(rt.dBm_AntSignal)
-        except: pass
+        try:
+            meta["rssi"] = int(rt.dBm_AntSignal)
+        except:
+            pass
 
     if hasattr(rt, "Rate"):
-        try: meta["rate"] = float(rt.Rate)
-        except: pass
+        try:
+            meta["rate"] = float(rt.Rate)
+        except:
+            pass
 
     if hasattr(rt, "ChannelFrequency"):
-        try: meta["channel_freq"] = int(rt.ChannelFrequency)
-        except: pass
+        try:
+            meta["channel_freq"] = int(rt.ChannelFrequency)
+        except:
+            pass
 
     if hasattr(rt, "ChannelFlags"):
-        try: meta["channel_flags"] = int(rt.ChannelFlags)
-        except: pass
+        try:
+            meta["channel_flags"] = int(rt.ChannelFlags)
+        except:
+            pass
 
     return meta
 
+
+# ---------------------------------------------------------
+# Frame Classification
+# ---------------------------------------------------------
 def classify_frame(pkt):
     if not pkt.haslayer(Dot11):
         return "unknown", "unknown", None
@@ -170,6 +170,7 @@ def classify_frame(pkt):
 
     return frame_type, subtype, direction
 
+
 def frame_filter(pkt):
     if not pkt.haslayer(Dot11):
         return False
@@ -180,12 +181,14 @@ def frame_filter(pkt):
         (t == 2 and "data" in FILTER_TYPES)
     )
 
+
 # ---------------------------------------------------------
 # Channel Activity Scoring
 # ---------------------------------------------------------
 def record_activity(ch, frame_type, subtype):
     if ch is None:
         return
+
     score = 0
     if frame_type == "management":
         if subtype in ("beacon", "probe_req", "assoc_req", "probe_resp"):
@@ -198,8 +201,9 @@ def record_activity(ch, frame_type, subtype):
     if score > 0:
         channel_activity[ch] = channel_activity.get(ch, 0) + score
 
+
 # ---------------------------------------------------------
-# Channel Hopper Thread
+# Channel Hopper
 # ---------------------------------------------------------
 def set_channel(ch):
     global current_channel
@@ -209,6 +213,7 @@ def set_channel(ch):
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+
 
 def channel_hopper():
     global phase, ACTIVE_CHANNELS, stop_flag
@@ -231,6 +236,7 @@ def channel_hopper():
                 break
             set_channel(ch)
             time.sleep(dwell)
+
 
 # ---------------------------------------------------------
 # Packet Handler
@@ -279,6 +285,7 @@ def handle_packet(pkt):
 
     print(json.dumps(record), flush=True)
 
+
 # ---------------------------------------------------------
 # Sniffer Loop
 # ---------------------------------------------------------
@@ -293,14 +300,15 @@ def sniffer_loop():
             count=50
         )
 
+
 # ---------------------------------------------------------
-# Main Sovereign Routine
+# Main Routine
 # ---------------------------------------------------------
 def main():
     global phase, ACTIVE_CHANNELS
 
-    print("[+] Sovereign RF Scanner Activated")
-    print("[+] Phase 1: Discovery Sweep")
+    print("[+] Sovereign RF Scanner Activated", file=sys.stderr)
+    print("[+] Phase 1: Discovery Sweep", file=sys.stderr)
 
     hopper_thread = threading.Thread(target=channel_hopper, daemon=True)
     hopper_thread.start()
@@ -308,26 +316,27 @@ def main():
     sniffer_thread = threading.Thread(target=sniffer_loop, daemon=True)
     sniffer_thread.start()
 
-    # Discovery period
+    # Phase 1: Discovery
     time.sleep(20)
 
-    # Select top channels
     ACTIVE_CHANNELS = [
-        ch for ch, _ in sorted(channel_activity.items(), key=lambda kv: kv[1], reverse=True)[:5]
+        ch for ch, _ in sorted(channel_activity.items(), key=lambda kv: kv[1], reverse=True)
     ]
 
-    print(f"[+] Discovery complete. Active channels: {ACTIVE_CHANNELS}")
+    print(f"[+] Discovery complete. Active channels: {ACTIVE_CHANNELS}", file=sys.stderr)
 
     # Phase 2: Focus
     phase = "focus"
-    print("[+] Phase 2: Deep Capture on Active Channels")
+    print("[+] Phase 2: Deep Capture on Active Channels", file=sys.stderr)
     time.sleep(60)
 
     # Phase 3: Vigilance
     phase = "vigil"
-    print("[+] Phase 3: Broad Spectrum Vigilance")
+    print("[+] Phase 3: Broad Spectrum Vigilance", file=sys.stderr)
+
     while True:
         time.sleep(5)
+
 
 if __name__ == "__main__":
     main()

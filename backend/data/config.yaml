@@ -1,0 +1,14 @@
+database:
+  path: "/home/zachariah/2026/backend/data/rf_archive.db"
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  reload: true
+
+streaming:
+  poll_interval_ms: 250
+
+classification:
+  enable_risk_scoring: true
+  default_risk_score: 0

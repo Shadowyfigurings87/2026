@@ -1,90 +1,94 @@
 #!/usr/bin/env python3
 import sys
 import json
-import sqlite3
 from datetime import datetime
 
-DB_PATH = "/home/zachariah/2026/scan/data/rf_archive.db"
-BATCH_SIZE = 100
+import db
+from anomaly.engine import analyze_frame
+
 
 # -------------------------------------------------------------------
-# DB setup and helpers
+# Helpers for ingest logging (queued writes)
 # -------------------------------------------------------------------
 
-def connect_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA synchronous=NORMAL;")
-    conn.execute("PRAGMA foreign_keys=ON;")
-    conn.execute("PRAGMA busy_timeout=5000;")
-    return conn
-
-def log_event(cursor, status, message):
-    cursor.execute(
-        "INSERT INTO ingest_log (timestamp, status, message) VALUES (?, ?, ?)",
-        (datetime.utcnow().isoformat(), status, message)
-    )
-
-def load_identity_map(cursor):
+def log_event(status, message):
+    sql = """
+        INSERT INTO ingest_log (timestamp, status, message)
+        VALUES (?, ?, ?)
     """
-    Returns:
-        identity_map: mac_lower -> (sensor_id, role)
-    """
-    cursor.execute("SELECT sensor_id, mac, role FROM sensor_components")
+    params = (datetime.utcnow().isoformat(), status, message)
+    db.execute(sql, params)
+
+
+# -------------------------------------------------------------------
+# Identity + calibration maps (loaded via db.query)
+# -------------------------------------------------------------------
+
+def load_identity_map():
+    rows = db.query("SELECT sensor_id, mac, role FROM sensor_components")
     identity = {}
-    for sensor_id, mac, role in cursor.fetchall():
+    for row in rows:
+        mac = row["mac"]
         if mac:
-            identity[mac.lower()] = (sensor_id, role)
+            identity[mac.lower()] = (row["sensor_id"], row["role"])
     return identity
 
-def load_calibration_map(cursor):
-    """
-    Returns:
-        calibration_map: (sensor_id, role) -> offset
-    """
-    cursor.execute("SELECT sensor_id, component_role, offset FROM rssi_calibration")
+
+def load_calibration_map():
+    rows = db.query("SELECT sensor_id, component_role, offset FROM rssi_calibration")
     cal = {}
-    for sensor_id, role, offset in cursor.fetchall():
-        cal[(sensor_id, role)] = offset
+    for row in rows:
+        cal[(row["sensor_id"], row["component_role"])] = row["offset"]
     return cal
 
-def update_heartbeat(cursor, sensor_id, mac, role):
-    cursor.execute(
-        """
+
+# -------------------------------------------------------------------
+# Queued write helpers
+# -------------------------------------------------------------------
+
+def update_heartbeat(sensor_id, mac, role):
+    sql = """
         INSERT INTO sensor_status (sensor_id, last_seen, component_mac, component_role)
         VALUES (?, ?, ?, ?)
-        """,
-        (sensor_id, datetime.utcnow().isoformat(), mac, role),
-    )
+    """
+    params = (sensor_id, datetime.utcnow().isoformat(), mac, role)
+    db.execute(sql, params)
 
-def update_channel_metrics(cursor, channel, sensor_id, role, activity_score):
+
+def update_channel_metrics(channel, sensor_id, role, activity_score):
     if channel is None:
         return
-    cursor.execute(
-        """
+    sql = """
         INSERT INTO channel_metrics (timestamp, channel, sensor_id, component_role, activity_score)
         VALUES (?, ?, ?, ?, ?)
-        """,
-        (datetime.utcnow().isoformat(), channel, sensor_id, role, activity_score),
+    """
+    params = (
+        datetime.utcnow().isoformat(),
+        channel,
+        sensor_id,
+        role,
+        activity_score,
     )
+    db.execute(sql, params)
 
-def record_alert(cursor, alert_type, mac, sensor_id, role, severity, description):
-    cursor.execute(
-        """
+
+def record_alert(alert_type, mac, sensor_id, role, severity, description):
+    sql = """
         INSERT INTO alerts (timestamp, alert_type, mac, sensor_id, component_role, severity, description)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            datetime.utcnow().isoformat(),
-            alert_type,
-            mac,
-            sensor_id,
-            role,
-            severity,
-            description,
-        ),
+    """
+    params = (
+        datetime.utcnow().isoformat(),
+        alert_type,
+        mac,
+        sensor_id,
+        role,
+        severity,
+        description,
     )
+    db.execute(sql, params)
     print(f"[ALERT] {alert_type.upper()} | {severity:.2f} | {description}", flush=True)
+
 
 # -------------------------------------------------------------------
 # Feature and scoring helpers
@@ -99,13 +103,8 @@ def compute_activity_score(frame_type):
         return 1
     return 0
 
+
 def compute_basic_anomaly_score(activity_score, signal_quality):
-    """
-    Very simple anomaly signal:
-      - higher activity_score bumps it
-      - low signal_quality bumps it
-    Purely heuristic for now; future DAG/ML can replace this.
-    """
     score = 0.0
 
     if activity_score is not None:
@@ -124,19 +123,18 @@ def compute_basic_anomaly_score(activity_score, signal_quality):
         score = 1.0
     return score if score > 0 else None
 
+
 # -------------------------------------------------------------------
-# Main ingest loop
+# Main ingest loop (now queue‑based)
 # -------------------------------------------------------------------
 
 def main():
-    conn = connect_db()
-    cursor = conn.cursor()
+    print("[+] ml_ingest.py Phase 15 — sovereign queue‑based ingest engine", flush=True)
+    log_event("start", "Ingest script started (Phase 15)")
 
-    print("[+] ml_ingest.py Phase 14 — consolidated sovereign ingest engine", flush=True)
-    log_event(cursor, "start", "Ingest script started (Phase 14)")
-
-    identity_map = load_identity_map(cursor)
-    calibration_map = load_calibration_map(cursor)
+    # Load identity + calibration maps via db.query()
+    identity_map = load_identity_map()
+    calibration_map = load_calibration_map()
 
     insert_stmt = """
         INSERT INTO frames (
@@ -151,8 +149,6 @@ def main():
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
-    batch_count = 0
-
     for line in sys.stdin:
         line = line.strip()
         if not line:
@@ -163,7 +159,7 @@ def main():
         except json.JSONDecodeError:
             msg = f"JSON decode error: {line[:80]}"
             print(f"[!] {msg}", flush=True)
-            log_event(cursor, "json_error", msg)
+            log_event("json_error", msg)
             continue
 
         # ------------------------------------------------------------------
@@ -181,7 +177,7 @@ def main():
         dst_role = dst_info[1] if dst_info else None
         bssid_role = bssid_info[1] if bssid_info else None
 
-        # Determine primary sensor origin: src > bssid > dst
+        # Determine primary sensor origin
         sensor_id = None
         component_role = None
         for info in (src_info, bssid_info, dst_info):
@@ -189,9 +185,9 @@ def main():
                 sensor_id, component_role = info
                 break
 
-        # Heartbeat update (only if we can attribute the frame)
+        # Heartbeat
         if sensor_id and component_role:
-            update_heartbeat(cursor, sensor_id, src_mac, component_role)
+            update_heartbeat(sensor_id, src_mac, component_role)
 
         # ------------------------------------------------------------------
         # Feature extraction
@@ -200,47 +196,37 @@ def main():
         activity_score = compute_activity_score(frame_type)
 
         rssi = record.get("rssi")
-        cal_offset = 0
-        if sensor_id and component_role:
-            cal_offset = calibration_map.get((sensor_id, component_role), 0)
+        cal_offset = calibration_map.get((sensor_id, component_role), 0) if sensor_id else 0
 
-        if rssi is not None:
-            try:
-                rssi_value = int(rssi)
-            except (TypeError, ValueError):
-                rssi_value = None
-        else:
+        try:
+            rssi_value = int(rssi) if rssi is not None else None
+        except (TypeError, ValueError):
             rssi_value = None
 
         rssi_normalized = rssi_value + cal_offset if rssi_value is not None else None
 
         signal_quality = None
         if rssi_normalized is not None:
-            # simple mapping: -100 dBm -> 0.0, 0 dBm -> 1.0
             signal_quality = (rssi_normalized + 100) / 100.0
-            if signal_quality < 0:
-                signal_quality = 0.0
-            if signal_quality > 1:
-                signal_quality = 1.0
+            signal_quality = max(0.0, min(1.0, signal_quality))
 
         # Channel metrics
-        update_channel_metrics(cursor, record.get("channel"), sensor_id, component_role, activity_score)
+        update_channel_metrics(record.get("channel"), sensor_id, component_role, activity_score)
 
-        # Basic anomaly signal → alerts
+        # Basic anomaly signal
         anomaly_score = compute_basic_anomaly_score(activity_score, signal_quality)
         if anomaly_score is not None and anomaly_score >= 0.6:
             record_alert(
-                cursor,
-                alert_type="rf_anomaly",
-                mac=src_mac,
-                sensor_id=sensor_id,
-                role=component_role,
-                severity=anomaly_score,
-                description=f"Elevated anomaly score ({anomaly_score:.2f}) frame_type={frame_type}",
+                "rf_anomaly",
+                src_mac,
+                sensor_id,
+                component_role,
+                anomaly_score,
+                f"Elevated anomaly score ({anomaly_score:.2f}) frame_type={frame_type}",
             )
 
         # ------------------------------------------------------------------
-        # Insert frame
+        # Insert frame (queued write)
         # ------------------------------------------------------------------
         values = (
             record.get("timestamp"),
@@ -269,30 +255,49 @@ def main():
             activity_score,
         )
 
+        db.execute(insert_stmt, values)
+
+        # ------------------------------------------------------------------
+        # Rule‑based anomaly engine
+        # ------------------------------------------------------------------
+        frame_dict = {
+            "timestamp": values[0],
+            "source": values[1],
+            "iface": values[2],
+            "frame_type": values[3],
+            "subtype": values[4],
+            "direction": values[5],
+            "src_mac": values[6],
+            "dst_mac": values[7],
+            "bssid": values[8],
+            "ssid": values[9],
+            "channel": values[10],
+            "rssi": values[11],
+            "rate": values[12],
+            "channel_freq": values[13],
+            "channel_flags": values[14],
+            "summary": values[15],
+            "src_role": values[16],
+            "dst_role": values[17],
+            "bssid_role": values[18],
+            "sensor_id": values[19],
+            "sensor_component_role": values[20],
+            "rssi_normalized": values[21],
+            "signal_quality": values[22],
+            "activity_score": values[23],
+        }
+
         try:
-            cursor.execute(insert_stmt, values)
-            batch_count += 1
+            analyze_frame(frame_dict)
         except Exception as e:
-            msg = f"DB insert error: {str(e)}"
+            msg = f"Anomaly engine error: {str(e)}"
             print(f"[!] {msg}", flush=True)
-            log_event(cursor, "db_error", msg)
-            continue
+            log_event("anomaly_error", msg)
 
-        if batch_count >= BATCH_SIZE:
-            conn.commit()
-            print(f"[+] Committed batch of {BATCH_SIZE} frames", flush=True)
-            batch_count = 0
+    # End of ingest
+    log_event("stop", "Ingest script finished (Phase 15)")
+    print("[+] ml_ingest.py Phase 15 complete", flush=True)
 
-    # Final commit
-    if batch_count > 0:
-        conn.commit()
-        print(f"[+] Final commit of {batch_count} frames", flush=True)
-
-    log_event(cursor, "stop", "Ingest script finished (Phase 14)")
-    conn.commit()
-    conn.close()
-
-    print("[+] ml_ingest.py Phase 14 complete", flush=True)
 
 if __name__ == "__main__":
     main()
