@@ -2,14 +2,27 @@ import os
 import yaml
 from pathlib import Path
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent / "data" / "config.yaml"
+# Resolve the backend root directory (two levels up from this file)
+BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Absolute path to the data directory
+DATA_DIR = BASE_DIR / "data"
+
+# Absolute path to the SQLite database
+DB_PATH = DATA_DIR / "rf_archive.db"
+
+# Absolute path to config.yaml
+CONFIG_PATH = DATA_DIR / "config.yaml"
+
+# Load config.yaml
 with open(CONFIG_PATH, "r") as f:
     CONFIG = yaml.safe_load(f)
 
-def get_db_path():
-    db_path = CONFIG["database"]["path"]
-    return os.path.abspath(db_path)
+def get_db_path() -> str:
+    """
+    Always return the absolute path to the sovereign archive.
+    """
+    return str(DB_PATH)
 
 def get_poll_interval() -> float:
     ms = CONFIG["streaming"]["poll_interval_ms"]

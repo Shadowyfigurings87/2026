@@ -6,7 +6,7 @@ def rule_unknown_vendor(frame: dict):
         return {
             "type": "unknown_vendor",
             "description": "Frame from unknown or unclassified vendor",
-            "mac": frame.get("src_mac"),
+            "mac": frame.get("src_mac", "unkown"),
         }
 
 

@@ -12,3 +12,5 @@ streaming:
 classification:
   enable_risk_scoring: true
   default_risk_score: 0
+suppression:
+  window_minutes: 5

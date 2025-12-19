@@ -135,6 +135,13 @@ CREATE INDEX idx_channel_metrics_channel  ON channel_metrics (channel);
 ----------------------------------------------------------------------
 -- Alerts: anomaly / event stream
 ----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS system_metrics (
+    timestamp TEXT NOT NULL,
+    component TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    metric_value REAL,
+    meta TEXT
+);
 
 CREATE TABLE alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -145,6 +152,17 @@ CREATE TABLE alerts (
     component_role TEXT,
     severity       REAL,
     description    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT,
+    alert_type TEXT,
+    mac TEXT,
+    sensor_id TEXT,
+    component_role TEXT,
+    severity REAL,
+    description TEXT
 );
 
 CREATE INDEX idx_alerts_ts        ON alerts (timestamp);

@@ -1,36 +1,111 @@
-# db/writer.py
-
 import sqlite3
+import time
+from queue import Empty
+from utils.logging import log_event
 import threading
-from write_queue import db_write_queue
-from utils.config import get_db_path
 
-DB_PATH = get_db_path()
+BATCH_SIZE = 100
+BATCH_TIMEOUT = 0.25
 
-def db_writer_loop():
-    conn = sqlite3.connect(DB_PATH, timeout=5.0, check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys=ON;")
-    conn.execute("PRAGMA busy_timeout=5000;")
-    cur = conn.cursor()
 
-    print("[DB] Writer thread started")
+def db_writer_thread(db_path, ingest_queue):
+    conn = sqlite3.connect(db_path, isolation_level=None)
+    cursor = conn.cursor()
+
+    log_event("db_writer", "INFO", "writer_online")
+
+    batch = []
+    last_commit = time.time()
 
     while True:
-        sql, params = db_write_queue.get()
         try:
-            cur.execute(sql, params)
-            conn.commit()
+            frame = ingest_queue.get(timeout=BATCH_TIMEOUT)
+            batch.append(frame)
+        except Empty:
+            pass
 
-            # Optional debug visibility
-            if sql.strip().upper().startswith("INSERT INTO FRAMES"):
-                print(f"[DB] Inserted frame src={params[6]} dst={params[7]} ch={params[10]} rssi={params[11]}")
+        # Flush if batch is full or timeout expired
+        if len(batch) >= BATCH_SIZE or (batch and time.time() - last_commit >= BATCH_TIMEOUT):
+            try:
+                # Debug log before attempting insert
+                log_event("db_writer", "DEBUG", "flush_attempt", {
+                    "batch_size": len(batch),
+                    "elapsed": round(time.time() - last_commit, 3)
+                })
 
-        except Exception as e:
-            print(f"[DB] Writer error: {e} | SQL={sql} | params={params}")
+                # Build safe batch with defaults for missing fields
+                safe_batch = []
+                for f in batch:
+                    safe_batch.append({
+                        "timestamp": f.get("timestamp"),
+                        "source": f.get("source"),
+                        "iface": f.get("iface"),
+                        "frame_type": f.get("frame_type"),
+                        "subtype": f.get("subtype"),
+                        "direction": f.get("direction"),
+                        "src": f.get("src"),
+                        "dst": f.get("dst"),
+                        "bssid": f.get("bssid"),
+                        "ssid": f.get("ssid"),
+                        "channel": f.get("channel"),
+                        "rssi": f.get("rssi"),
+                        "rate": f.get("rate"),
+                        "channel_freq": f.get("channel_freq"),
+                        "channel_flags": f.get("channel_flags"),
+                        "summary": f.get("summary"),
+
+                        # Safe defaults for missing enriched fields
+                        "src_role": f.get("src_role"),
+                        "dst_role": f.get("dst_role"),
+                        "bssid_role": f.get("bssid_role"),
+                        "sensor_id": f.get("sensor_id"),
+                        "sensor_component_role": f.get("sensor_component_role"),
+                        "rssi_normalized": f.get("rssi_normalized"),
+                        "signal_quality": f.get("signal_quality"),
+                        "activity_score": f.get("activity_score"),
+                    })
+
+                cursor.executemany(
+                    """
+                    INSERT INTO frames (
+                        timestamp, source, iface,
+                        frame_type, subtype, direction,
+                        src_mac, dst_mac, bssid, ssid,
+                        channel, rssi, rate, channel_freq, channel_flags,
+                        summary,
+                        src_role, dst_role, bssid_role,
+                        sensor_id, sensor_component_role,
+                        rssi_normalized, signal_quality, activity_score
+                    ) VALUES (
+                        :timestamp, :source, :iface,
+                        :frame_type, :subtype, :direction,
+                        :src, :dst, :bssid, :ssid,
+                        :channel, :rssi, :rate, :channel_freq, :channel_flags,
+                        :summary,
+                        :src_role, :dst_role, :bssid_role,
+                        :sensor_id, :sensor_component_role,
+                        :rssi_normalized, :signal_quality, :activity_score
+                    )
+                    """,
+                    safe_batch
+                )
+                conn.commit()
+
+                # Log AFTER successful commit, BEFORE clearing
+                log_event("db_writer", "INFO", "batch_insert", {"count": len(batch)})
+
+                batch.clear()
+                last_commit = time.time()
+
+            except Exception as e:
+                conn.rollback()
+                log_event("db_writer", "ERROR", "batch_insert_failed", {"error": str(e)})
 
 
-def start_db_writer():
-    t = threading.Thread(target=db_writer_loop, daemon=True)
+def start_db_writer(db_path, ingest_queue):
+    t = threading.Thread(
+        target=db_writer_thread,
+        args=(db_path, ingest_queue),
+        daemon=True
+    )
     t.start()
