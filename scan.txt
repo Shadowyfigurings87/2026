@@ -1,4 +1,6 @@
- ssh -p 15166 balthazaar1987@6.tcp.ngrok.io "/usr/local/bin/runscanner" | python3 manager.py
+ssh -p 15166 balthazaar1987@6.tcp.ngrok.io "/usr/local/bin/runscanner" | nc localhost 9000
+
+tree -L 3
 
 sqlite3 /home/zachariah/2026/scan/data/rf_archive.db
 #!/usr/bin/env python3
