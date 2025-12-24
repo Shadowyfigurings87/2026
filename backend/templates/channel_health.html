@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    .panel {
+        background: #1e1e1e;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #333;
+        margin-bottom: 20px;
+    }
+    .panel h2, .panel h3 {
+        margin-top: 0;
+        color: #fff;
+    }
+    .channel-item {
+        padding: 6px 10px;
+        margin: 4px 0;
+        background: #2a2a2a;
+        border-radius: 4px;
+        color: #ddd;
+        cursor: pointer;
+    }
+    .channel-item:hover {
+        background: #333;
+    }
+    .timeline-entry {
+        padding: 4px 8px;
+        margin: 3px 0;
+        border-left: 4px solid #666;
+        background: #2a2a2a;
+        border-radius: 4px;
+        color: #ddd;
+        font-size: 13px;
+    }
+</style>
+
+<h1>Channel Health Dashboard</h1>
+<p style="color:#bbb">Per-channel anomaly behavior from the RF Observatory</p>
+
+<div class="panel">
+    <h2>Top Channels by Deviation</h2>
+    <div id="channel-list">Loading…</div>
+</div>
+
+<div class="panel">
+    <h2>Selected Channel Timeline</h2>
+    <div id="channel-selected" style="color:#aaa">No channel selected</div>
+    <div id="channel-timeline"></div>
+</div>
+
+<script>
+let currentChannel = null;
+
+function loadTopChannels() {
+    fetch("/api/channels/top_deviation")
+        .then(r => r.json())
+        .then(chans => {
+            const container = document.getElementById("channel-list");
+            container.innerHTML = "";
+            if (!chans.length) {
+                container.innerHTML = "<i>No channels with significant deviation yet</i>";
+                return;
+            }
+            chans.forEach(c => {
+                const div = document.createElement("div");
+                div.className = "channel-item";
+                div.innerHTML = `
+                    <b>Channel ${c.channel}</b><br>
+                    Max deviation: ${c.max_deviation.toFixed(3)} (samples: ${c.samples})
+                `;
+                div.onclick = () => {
+                    currentChannel = c.channel;
+                    document.getElementById("channel-selected").innerText =
+                        "Channel: " + currentChannel;
+                    loadChannelTimeline(currentChannel);
+                };
+                container.appendChild(div);
+            });
+        })
+        .catch(err => {
+            console.error("Failed to load top channels:", err);
+        });
+}
+
+function loadChannelTimeline(ch) {
+    fetch("/api/channel/" + encodeURIComponent(ch) + "/timeline")
+        .then(r => r.json())
+        .then(events => {
+            const container = document.getElementById("channel-timeline");
+            container.innerHTML = "";
+            if (!events.length) {
+                container.innerHTML = "<i>No anomaly history for this channel</i>";
+                return;
+            }
+            events.forEach(e => {
+                const div = document.createElement("div");
+                div.className = "timeline-entry";
+                div.innerHTML = `
+                    <b>${e.timestamp}</b> — ${e.frame_type}<br>
+                    Severity: ${e.anomaly_severity}, score=${e.anomaly_score.toFixed(3)}, cluster=${e.anomaly_cluster}<br>
+                    Dev: device=${e.device_deviation.toFixed(3)}, channel=${e.channel_deviation.toFixed(3)}<br>
+                    Source: ${e.src_mac}
+                `;
+                container.appendChild(div);
+            });
+        })
+        .catch(err => {
+            console.error("Failed to load channel timeline:", err);
+        });
+}
+
+// Initial load
+loadTopChannels();
+
+// Optionally refresh list every 30s
+setInterval(loadTopChannels, 30000);
+</script>
+
+{% endblock %}

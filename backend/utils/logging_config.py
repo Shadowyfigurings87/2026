@@ -15,15 +15,31 @@ ERROR_LOG = os.path.join(LOG_DIR, "backend-error.log")
 WARNING_LOG = os.path.join(LOG_DIR, "backend-warning.log")
 METRICS_LOG = os.path.join(LOG_DIR, "backend-metrics.log")
 
-# Configure root logger
-logger = logging.getLogger("backend")
-logger.setLevel(logging.DEBUG)
+# ------------------------------------------------------------
+# 1. Create backend logger
+# ------------------------------------------------------------
+backend_logger = logging.getLogger("backend")
+backend_logger.setLevel(logging.DEBUG)
+backend_logger.propagate = True
 
-# Console handler (stdout)
+# ------------------------------------------------------------
+# 2. Create console handler
+# ------------------------------------------------------------
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)
 
-# Rotating file handlers
+# ------------------------------------------------------------
+# 3. Reset root logger so it doesn't swallow logs
+# ------------------------------------------------------------
+root = logging.getLogger()
+root.handlers.clear()
+root.setLevel(logging.DEBUG)
+root.addHandler(console_handler)
+root.propagate = False
+
+# ------------------------------------------------------------
+# 4. Create file handlers
+# ------------------------------------------------------------
 main_handler = TimedRotatingFileHandler(
     MAIN_LOG, when="midnight", interval=1, backupCount=7, encoding="utf-8"
 )
@@ -44,7 +60,9 @@ metrics_handler = TimedRotatingFileHandler(
 )
 metrics_handler.setLevel(logging.INFO)
 
-# Formatter: structured JSON
+# ------------------------------------------------------------
+# 5. Create JSON formatter and attach to all handlers
+# ------------------------------------------------------------
 class JSONFormatter(logging.Formatter):
     def format(self, record):
         entry = {
@@ -57,25 +75,25 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(entry)
 
 formatter = JSONFormatter()
+
 console_handler.setFormatter(formatter)
 main_handler.setFormatter(formatter)
 error_handler.setFormatter(formatter)
 warning_handler.setFormatter(formatter)
 metrics_handler.setFormatter(formatter)
 
-# Attach handlers
-logger.addHandler(console_handler)
-logger.addHandler(main_handler)
-logger.addHandler(error_handler)
-logger.addHandler(warning_handler)
-logger.addHandler(metrics_handler)
+# ------------------------------------------------------------
+# 6. Attach file handlers to backend logger
+# ------------------------------------------------------------
+backend_logger.addHandler(main_handler)
+backend_logger.addHandler(error_handler)
+backend_logger.addHandler(warning_handler)
+backend_logger.addHandler(metrics_handler)
 
-
+# ------------------------------------------------------------
+# 7. log_event helper
+# ------------------------------------------------------------
 def log_event(component, severity, event, details=None):
-    """
-    Unified structured logging for all ministries.
-    severity: DEBUG, INFO, WARNING, ERROR, CRITICAL
-    """
     level = getattr(logging, severity.upper(), logging.INFO)
     extra = {"component": component, "event": event, "details": details or {}}
-    logger.log(level, event, extra=extra)
+    backend_logger.log(level, event, extra=extra)

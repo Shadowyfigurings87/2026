@@ -1,30 +1,56 @@
 # utils/mac.py
 
-import re
+import os
+import csv
+from functools import lru_cache
+
+_OUI_MAP = None
+
+def _load_oui_map():
+    global _OUI_MAP
+    if _OUI_MAP is not None:
+        return _OUI_MAP
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    oui_path = os.path.join(base_dir, "data", "vendors_oui.csv")
+
+    mapping = {}
+
+    if not os.path.exists(oui_path):
+        _OUI_MAP = mapping
+        return mapping
+
+    with open(oui_path, newline="") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if not row or len(row) < 2:
+                continue
+            prefix, vendor = row[0].strip(), row[1].strip()
+            # Normalize OUI as first 6 hex chars, uppercase, no separators
+            prefix = prefix.replace(":", "").replace("-", "").upper()[:6]
+            if prefix:
+                mapping[prefix] = vendor
+
+    _OUI_MAP = mapping
+    return mapping
 
 
-def normalize_mac(mac: str | None) -> str | None:
+@lru_cache(maxsize=4096)
+def lookup_vendor(mac: str | None) -> str | None:
     """
-    Normalize MAC address to uppercase colon-separated form.
-    Returns None if input is None or empty.
+    Fast OUI-based vendor lookup.
+
+    - Normalizes MAC
+    - Uses in-memory prefix map
+    - Cached per MAC
     """
     if not mac:
         return None
 
-    # Remove non-hex characters
-    cleaned = re.sub(r"[^0-9A-Fa-f]", "", mac)
-    if len(cleaned) != 12:
-        return mac.upper()
-
-    parts = [cleaned[i:i+2] for i in range(0, 12, 2)]
-    return ":".join(parts).upper()
-
-
-def mac_to_oui(mac: str | None) -> str | None:
-    """
-    Extract OUI (first 3 bytes) from a normalized MAC.
-    """
-    norm = normalize_mac(mac)
-    if not norm:
+    mac_norm = mac.replace(":", "").replace("-", "").upper()
+    if len(mac_norm) < 6:
         return None
-    return ":".join(norm.split(":")[0:3])
+
+    prefix = mac_norm[:6]
+    mapping = _load_oui_map()
+    return mapping.get(prefix)

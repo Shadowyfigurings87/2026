@@ -1,12 +1,9 @@
 import threading
 import time
 from collections import deque
-from utils.logging import log_event
-from prometheus_client import Gauge, Counter, generate_latest, CONTENT_TYPE_LATEST
-from fastapi import FastAPI, Request
-from fastapi.responses import Response
-from fastapi.templating import Jinja2Templates
-import os
+from utils.logging_config import log_event
+from prometheus_client import Gauge, Counter
+import json
 
 # -----------------------------
 # Shared RF metrics
@@ -43,38 +40,6 @@ recent_frame_info = Gauge(
 )
 
 # -----------------------------
-# FastAPI app
-# -----------------------------
-app = FastAPI()
-import os
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
-
-@app.get("/metrics")
-def metrics():
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
-
-@app.get("/dashboard")
-def dashboard(request: Request):
-    return templates.TemplateResponse(
-        "observatory.html",
-        {
-            "request": request,
-            "total": rf_metrics["total_frames"],
-            "control": rf_metrics["control_frames"],
-            "management": rf_metrics["management_frames"],
-            "data": rf_metrics["data_frames"],
-            "avg_rssi": (
-                sum(rf_metrics["rssi_values"]) / len(rf_metrics["rssi_values"])
-                if rf_metrics["rssi_values"] else None
-            ),
-            "min_rssi": min(rf_metrics["rssi_values"]) if rf_metrics["rssi_values"] else None,
-            "max_rssi": max(rf_metrics["rssi_values"]) if rf_metrics["rssi_values"] else None,
-            "recent_frames": list(recent_frames),
-        },
-    )
-
-# -----------------------------
 # Update functions
 # -----------------------------
 def update_metrics(frame):
@@ -101,7 +66,7 @@ def update_metrics(frame):
     # Keep recent frames
     recent_frames.append(frame)
 
-    # Update Prometheus recent_frame_info (limit to last 10)
+    # Update Prometheus recent_frame_info
     recent_frame_info.clear()
     for f in list(recent_frames):
         recent_frame_info.labels(
@@ -121,6 +86,29 @@ def update_anomaly_score(score, frame_type):
         "score": score,
         "frame_type": frame_type
     })
+
+# -----------------------------
+# Dashboard data helper
+# -----------------------------
+def get_dashboard_data():
+    """Returns a dict used by the dashboard template."""
+    if rf_metrics["rssi_values"]:
+        avg_rssi = sum(rf_metrics["rssi_values"]) / len(rf_metrics["rssi_values"])
+        min_rssi = min(rf_metrics["rssi_values"])
+        max_rssi = max(rf_metrics["rssi_values"])
+    else:
+        avg_rssi = min_rssi = max_rssi = None
+
+    return {
+        "total": rf_metrics["total_frames"],
+        "control": rf_metrics["control_frames"],
+        "management": rf_metrics["management_frames"],
+        "data": rf_metrics["data_frames"],
+        "avg_rssi": avg_rssi,
+        "min_rssi": min_rssi,
+        "max_rssi": max_rssi,
+        "recent_frames": list(recent_frames),
+    }
 
 # -----------------------------
 # Observatory heartbeat
@@ -155,7 +143,7 @@ def run_observatory():
             "max_rssi": max_rssi,
         })
 
-        # Log recent frames for quality inspection
+        # Log recent frames
         for f in list(recent_frames):
             log_event("observatory", "DEBUG", "recent_frame", {
                 "timestamp": f.get("timestamp"),
@@ -170,3 +158,54 @@ def run_observatory():
 def start_observatory():
     t = threading.Thread(target=run_observatory, daemon=True)
     t.start()
+
+# services/observatory.py (additions sketch)
+
+# ---------------------------------------------------------------------------
+# WebSocket: Live anomaly events
+# ---------------------------------------------------------------------------
+
+import json
+
+_live_anomaly_clients = set()
+
+def register_anomaly_ws(ws):
+    _live_anomaly_clients.add(ws)
+
+def unregister_anomaly_ws(ws):
+    _live_anomaly_clients.discard(ws)
+
+def broadcast_anomaly_event(event: dict):
+    dead = []
+    msg = json.dumps(event)
+    for ws in list(_live_anomaly_clients):
+        try:
+            ws.send(msg)
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        _live_anomaly_clients.discard(ws)
+
+
+# ---------------------------------------------------------------------------
+# WebSocket: Rule-based alert events
+# ---------------------------------------------------------------------------
+
+_live_rule_clients = set()
+
+def register_rule_ws(ws):
+    _live_rule_clients.add(ws)
+
+def unregister_rule_ws(ws):
+    _live_rule_clients.discard(ws)
+
+def broadcast_rule_alert(alert: dict):
+    dead = []
+    msg = json.dumps(alert)
+    for ws in list(_live_rule_clients):
+        try:
+            ws.send(msg)
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        _live_rule_clients.discard(ws)

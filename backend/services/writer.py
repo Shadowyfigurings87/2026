@@ -1,14 +1,16 @@
 import sqlite3
 import time
 from queue import Empty
-from utils.logging import log_event
 import threading
+from utils.logging_config import log_event
+log_event("db_writer", "INFO", "startup_test", {})
 
 BATCH_SIZE = 100
 BATCH_TIMEOUT = 0.25
 
 
 def db_writer_thread(db_path, ingest_queue):
+    from utils.logging_config import log_event
     conn = sqlite3.connect(db_path, isolation_level=None)
     cursor = conn.cursor()
 
@@ -65,6 +67,30 @@ def db_writer_thread(db_path, ingest_queue):
                         "activity_score": f.get("activity_score"),
                     })
 
+                # -----------------------------------------
+                # NEW: Log anomalies before frame insert
+                # -----------------------------------------
+                for f in batch:
+                    if "anomaly_score" in f and f["anomaly_score"] is not None:
+                        try:
+                            cursor.execute(
+                                "INSERT INTO anomalies (timestamp, score, frame_type) VALUES (?, ?, ?)",
+                                (f.get("timestamp"), f.get("anomaly_score"), f.get("frame_type"))
+                            )
+                            log_event("db_writer", "DEBUG", "anomaly_logged", {
+                                "timestamp": f.get("timestamp"),
+                                "score": f.get("anomaly_score"),
+                                "frame_type": f.get("frame_type")
+                            })
+                        except Exception as e:
+                            log_event("db_writer", "ERROR", "anomaly_insert_failed", {
+                                "error": str(e),
+                                "frame": f
+                            })
+
+                # -----------------------------------------
+                # Insert frames (existing logic)
+                # -----------------------------------------
                 cursor.executemany(
                     """
                     INSERT INTO frames (

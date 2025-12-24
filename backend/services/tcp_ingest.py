@@ -5,9 +5,9 @@ import time
 from queue import Queue
 
 # Adjust this import to match your actual queue location
-from ingest.shared_queue import ingest_queue  
+from services.shared_queue import ingest_queue  
 
-from utils.logging import log_event  # Your structured logging helper
+from utils.logging_config import log_event  # Your structured logging helper
 
 
 def handle_client(conn, addr):

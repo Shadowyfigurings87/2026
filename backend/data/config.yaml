@@ -14,3 +14,15 @@ classification:
   default_risk_score: 0
 suppression:
   window_minutes: 5
+  
+known_ap_vendors:
+  - Cisco
+  - Ubiquiti
+  - Aruba
+  - Juniper
+  - MikroTik
+
+protected_ssid_prefixes:
+  - Corp
+  - CompanyWiFi
+  - HQ

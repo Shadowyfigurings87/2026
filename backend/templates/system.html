@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Sensors{% endblock %}
+
+{% block content %}
+<h2 class="page-title">Sensors</h2>
+
+<div class="card">
+  <canvas id="sensorRSSI"></canvas>
+</div>
+
+<div class="card">
+  <h3>Sensor Status</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Last Heartbeat</th>
+        <th>Avg RSSI</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sensors %}
+      <tr>
+        <td>{{ s.name }}</td>
+        <td>
+          {% if s.online %}
+            <span class="pill ok">online</span>
+          {% else %}
+            <span class="pill err">offline</span>
+          {% endif %}
+        </td>
+        <td>{{ s.last_heartbeat }}</td>
+        <td>{{ s.avg_rssi }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+new Chart(document.getElementById('sensorRSSI'), {
+  type: 'line',
+  data: {
+    labels: {{ labels | safe }},
+    datasets: [{
+      label: 'Avg RSSI',
+      data: {{ rssi | safe }},
+      borderColor: '#66f5ff',
+      tension: 0.2
+    }]
+  }
+});
+</script>
+{% endblock %}

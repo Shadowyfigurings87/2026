@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Frame Explorer{% endblock %}
+
+{% block content %}
+<h2 class="page-title">Frame Explorer</h2>
+
+<div class="card">
+  <form method="get">
+    <label>Source MAC:</label>
+    <input type="text" name="src" value="{{ src or '' }}">
+    <label>Destination MAC:</label>
+    <input type="text" name="dst" value="{{ dst or '' }}">
+    <label>Type:</label>
+    <input type="text" name="type" value="{{ type or '' }}">
+    <button type="submit">Filter</button>
+  </form>
+</div>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Source</th>
+        <th>Destination</th>
+        <th>Type</th>
+        <th>Subtype</th>
+        <th>RSSI</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in frames %}
+      <tr>
+        <td>{{ f.timestamp }}</td>
+        <td>{{ f.src }}</td>
+        <td>{{ f.dst }}</td>
+        <td>{{ f.frame_type }}</td>
+        <td>{{ f.subtype }}</td>
+        <td>{{ f.rssi }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
