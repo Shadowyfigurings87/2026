@@ -1,4 +1,5 @@
 # services/ingest_processor.py
+
 from utils.mac import lookup_vendor
 
 import threading
@@ -66,6 +67,24 @@ def load_calibration_map():
     return calibration_map
 
 
+# --- ROVER DB INSERTS -------------------------------------------------------
+
+def insert_rover_telemetry(ts, rover, source, data):
+    sql = """
+        INSERT INTO rover_telemetry (ts, rover, source, data)
+        VALUES (?, ?, ?, json(?))
+    """
+    execute_db(sql, (ts, rover, source, json.dumps(data)))
+
+
+def insert_rover_command_ack(ts, rover, command_id, status, raw):
+    sql = """
+        INSERT INTO rover_command_ack (ts, rover, command_id, status, raw)
+        VALUES (?, ?, ?, ?, json(?))
+    """
+    execute_db(sql, (ts, rover, command_id, status, json.dumps(raw)))
+
+
 # --- Scoring helpers --------------------------------------------------------
 
 def compute_activity_score(frame_type):
@@ -124,7 +143,7 @@ def record_alert(alert_type, mac, sensor_id, role, severity, description):
     execute_db(sql, params)
 
 
-# --- Main ingest processor --------------------------------------------------
+# --- MAIN INGEST PROCESSOR --------------------------------------------------
 
 def start_ingest_processor(ingest_queue):
     identity_map = load_identity_map()
@@ -148,6 +167,49 @@ def start_ingest_processor(ingest_queue):
 
         while True:
             record = ingest_queue.get()
+
+            # ------------------------------------------------------------------
+            # ---------------------- ROVER TELEMETRY ---------------------------
+            # ------------------------------------------------------------------
+            kind = record.get("kind")
+
+            if kind == "telemetry":
+                ts = record.get("ts")
+                rover = record.get("rover", "unknown")
+                source = record.get("source", "unknown")
+                data = record.get("data", {})
+
+                insert_rover_telemetry(ts, rover, source, data)
+
+                log_event("ingest_processor", "INFO", "rover_telemetry_ingested", {
+                    "rover": rover,
+                    "source": source
+                })
+
+                continue
+
+            # ------------------------------------------------------------------
+            # ---------------------- ROVER COMMAND ACK -------------------------
+            # ------------------------------------------------------------------
+            if kind == "command_ack":
+                ts = record.get("ts")
+                rover = record.get("rover", "Rover1")
+                command_id = record.get("command_id")
+                status = record.get("status", "unknown")
+
+                insert_rover_command_ack(ts, rover, command_id, status, record)
+
+                log_event("ingest_processor", "INFO", "rover_command_ack_ingested", {
+                    "rover": rover,
+                    "command_id": command_id,
+                    "status": status
+                })
+
+                continue
+
+            # ------------------------------------------------------------------
+            # ---------------------- RF FRAME (DEFAULT) ------------------------
+            # ------------------------------------------------------------------
 
             # --- Identity lookup -------------------------------------------
             src_mac = record.get("src")

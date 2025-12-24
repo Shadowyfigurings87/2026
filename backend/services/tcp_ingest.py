@@ -4,10 +4,8 @@ import json
 import time
 from queue import Queue
 
-# Adjust this import to match your actual queue location
 from services.shared_queue import ingest_queue  
-
-from utils.logging_config import log_event  # Your structured logging helper
+from utils.logging_config import log_event
 
 
 def handle_client(conn, addr):
@@ -33,17 +31,58 @@ def handle_client(conn, addr):
 
                 # Process JSON lines
                 while b"\n" in buffer:
-                    line, buffer = buffer.split(b"\n", 1)
+                    raw_line, buffer = buffer.split(b"\n", 1)
+                    line = raw_line.decode("utf-8", errors="ignore").strip()
+
+                    if not line:
+                        continue
+
                     try:
-                        frame = json.loads(line.decode("utf-8").strip())
-                        ingest_queue.put(frame)
+                        packet = json.loads(line)
+
+                        # --- NEW: classify packet type ---
+                        kind = packet.get("kind")
+
+                        if kind == "telemetry":
+                            # Rover telemetry
+                            log_event(
+                                component="tcp_ingest",
+                                severity="DEBUG",
+                                event="telemetry_received",
+                                details={
+                                    "rover": packet.get("rover", "unknown"),
+                                    "source": packet.get("source", "unknown")
+                                }
+                            )
+
+                        elif kind == "command_ack":
+                            # Rover command acknowledgement
+                            log_event(
+                                component="tcp_ingest",
+                                severity="DEBUG",
+                                event="command_ack_received",
+                                details=packet
+                            )
+
+                        else:
+                            # RF frame or unknown packet
+                            log_event(
+                                component="tcp_ingest",
+                                severity="DEBUG",
+                                event="frame_received",
+                                details={"kind": kind}
+                            )
+
+                        # Push into unified ingest queue
+                        ingest_queue.put(packet)
                         frames_received += 1
-                    except Exception as e:
+
+                    except json.JSONDecodeError:
                         log_event(
                             component="tcp_ingest",
                             severity="WARNING",
                             event="json_decode_error",
-                            details={"line": line[:200].decode("utf-8", errors="ignore")}
+                            details={"line": line[:200]}
                         )
                         continue
 
@@ -73,7 +112,7 @@ def start_tcp_ingest(host="0.0.0.0", port=9000):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((host, port))
-    server.listen(1)
+    server.listen(5)
 
     log_event(
         component="tcp_ingest",
