@@ -32,3 +32,19 @@ def channels_page(request: Request):
 @router.get("/threat")
 def threat_page(request: Request):
     return templates.TemplateResponse("threat_intel.html", {"request": request})
+
+@router.get("/rover")
+def rover_page(request: Request):
+    return templates.TemplateResponse(
+        "rover.html",
+        {"request": request, "active_page": "rover"}
+    )
+@router.get("/camera/stream")
+def rover_camera_stream():
+    return StreamingResponse(
+        open("/dev/shm/rover_cam.mjpeg", "rb"),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+@router.get("/camera/stream")
+def rover_camera_stream():
+    return RedirectResponse("http://redrover.local:81/stream")

@@ -13,6 +13,7 @@ from api.device_routes import router as device_router
 from api.channel_routes import router as channel_router
 from api.threat_routes import router as threat_router
 from api.pages_routes import router as pages_router
+from api.rover_routes import router as rover_router
 
 app = FastAPI()
 
@@ -27,6 +28,7 @@ app.include_router(device_router)
 app.include_router(channel_router)
 app.include_router(threat_router)
 app.include_router(pages_router)
+app.include_router(rover_router)
 
 # Prometheus metrics endpoint
 @app.get("/metrics")
