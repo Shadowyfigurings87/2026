@@ -1,53 +1,85 @@
+
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <BLEDevice.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
+#include "esp_bt_main.h"
+#include "esp_bt_device.h"
+#include "esp_gap_bt_api.h"
 
-// ------------- BLE setup -------------
+// ---------------- BLE Setup ----------------
 BLEScan* bleScanner;
 const int BLE_SCAN_DURATION_SEC = 1;
 
-// ------------- Helper: internal sensors -------------
+// ---------------- Bluetooth Classic Globals ----------------
+bool btInquiryDone = false;
+StaticJsonDocument<2048> btClassicDoc;
 
-// NOTE: ESP32 internal temperature sensor is not accurate, but we can still expose it.
-// Some cores expose temperatureRead() or this custom function; adjust if needed.
-float readInternalTemperatureC() {
-  // On many ESP32 boards, there is no calibrated temp sensor accessible by default.
-  // If your core supports temperatureRead(), you can use that instead.
-  // For now, we just return NAN as a placeholder.
-  // return temperatureRead();  // uncomment if supported by your core
-  return NAN;
+// Extract RSSI from Core 3.x BT GAP structure
+int extractRSSI(esp_bt_gap_cb_param_t *param) {
+  for (int i = 0; i < param->disc_res.num_prop; i++) {
+    if (param->disc_res.prop[i].type == ESP_BT_GAP_DEV_PROP_RSSI) {
+      return *(int8_t*)param->disc_res.prop[i].val;
+    }
+  }
+  return 0;
 }
 
-// Built-in hall effect sensor
-int readHallRaw() {
-  // hallRead() is available on classic ESP32 cores
-  return hallRead();
+void bt_inquiry_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param) {
+  if (event == ESP_BT_GAP_DISC_RES_EVT) {
+    JsonArray arr = btClassicDoc["devices"].as<JsonArray>();
+    JsonObject dev = arr.createNestedObject();
+
+    // MAC address
+    char bda_str[18];
+    sprintf(bda_str, "%02x:%02x:%02x:%02x:%02x:%02x",
+            param->disc_res.bda[0], param->disc_res.bda[1], param->disc_res.bda[2],
+            param->disc_res.bda[3], param->disc_res.bda[4], param->disc_res.bda[5]);
+    dev["mac"] = bda_str;
+
+    // RSSI
+    dev["rssi"] = extractRSSI(param);
+  }
+
+  if (event == ESP_BT_GAP_DISC_STATE_CHANGED_EVT) {
+    if (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STOPPED) {
+      btInquiryDone = true;
+    }
+  }
 }
 
-// ------------- Setup -------------
-
+// ---------------- Setup ----------------
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // BLE init
+  // ----- BLE -----
   BLEDevice::init("");
   bleScanner = BLEDevice::getScan();
-  bleScanner->setActiveScan(true); // better results, more power use
+  bleScanner->setActiveScan(true);
+
+  // ----- Bluetooth Classic -----
+  btClassicDoc.clear();
+  btClassicDoc["devices"] = btClassicDoc.createNestedArray("devices");
+
+  esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+  esp_bt_controller_init(&bt_cfg);
+  esp_bt_controller_enable(ESP_BT_MODE_BTDM);   // Dual mode: Classic + BLE
+  esp_bluedroid_init();
+  esp_bluedroid_enable();
+  esp_bt_gap_register_callback(bt_inquiry_callback);
 }
 
-// ------------- Main loop -------------
-
+// ---------------- Main Loop ----------------
 void loop() {
-  StaticJsonDocument<2048> doc;
+  StaticJsonDocument<3072> doc;
 
-  // ---------- BLE scan ----------
+  // ---------- BLE Scan ----------
   JsonObject ble = doc.createNestedObject("ble");
   JsonArray bleDevices = ble.createNestedArray("devices");
 
-  BLEScanResults results = bleScanner->start(BLE_SCAN_DURATION_SEC, false);
+  BLEScanResults results = *bleScanner->start(BLE_SCAN_DURATION_SEC, false);
   int count = results.getCount();
 
   for (int i = 0; i < count; i++) {
@@ -55,54 +87,37 @@ void loop() {
     JsonObject dev = bleDevices.createNestedObject();
     dev["mac"] = d.getAddress().toString().c_str();
     dev["rssi"] = d.getRSSI();
-
-    // Optional: basic info if available
-    if (d.haveName()) {
-      dev["name"] = d.getName().c_str();
-    }
-    if (d.haveServiceUUID()) {
-      dev["service_uuid"] = d.getServiceUUID().toString().c_str();
-    }
+    if (d.haveName()) dev["name"] = d.getName().c_str();
+    if (d.haveServiceUUID()) dev["service_uuid"] = d.getServiceUUID().toString().c_str();
   }
 
   ble["count"] = count;
   ble["status"] = "ok";
   bleScanner->clearResults();
 
-  // ---------- Bluetooth Classic (placeholder) ----------
-  // The Arduino BLE libraries don't provide true Classic inquiry scanning
-  // without additional stacks. We keep the JSON slot for future expansion.
-  JsonObject btClassic = doc.createNestedObject("bt_classic");
-  btClassic["status"] = "not_implemented";
+  // ---------- Bluetooth Classic Inquiry ----------
+  btClassicDoc["devices"].clear();
+  btInquiryDone = false;
+  esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, 3, 0);
 
-  // ---------- Internal temperature ----------
-  JsonObject internalTemp = doc.createNestedObject("internal_temp");
-  float tempC = readInternalTemperatureC();
-  if (isnan(tempC)) {
-    internalTemp["status"] = "unavailable";
-  } else {
-    internalTemp["celsius"] = tempC;
-    internalTemp["status"] = "ok";
+  unsigned long t0 = millis();
+  while (!btInquiryDone && millis() - t0 < 3500) {
+    delay(10);
   }
 
-  // ---------- Hall sensor ----------
-  JsonObject hall = doc.createNestedObject("hall");
-  hall["raw"] = readHallRaw();
-  hall["status"] = "ok";
+  doc["bt_classic"] = btClassicDoc;
 
-  // ---------- System stats ----------
+  // ---------- System Stats ----------
   JsonObject sys = doc.createNestedObject("system");
   sys["free_heap"] = ESP.getFreeHeap();
   sys["uptime_ms"] = millis();
 
-  // ---------- Overall status ----------
+  // ---------- Final ----------
   doc["status"] = "ok";
   doc["ts_ms"] = millis();
 
-  // ---------- Serialize once per loop ----------
   serializeJson(doc, Serial);
   Serial.println();
 
-  // Adjust loop rate
   delay(1000);
 }

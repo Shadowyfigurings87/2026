@@ -3,3 +3,6 @@ ssh -p 17922 balthazaar1987@0.tcp.ngrok.io "/usr/local/bin/runscanner" | nc loca
 tree -L 3
 
 sqlite3 /home/zachariah/2026/scan/data/rf_archive.db
+
+cd ~/Downloads
+./arduino-ide_2.3.7_Linux_64bit.AppImage
