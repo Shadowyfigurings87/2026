@@ -76,12 +76,14 @@ void loop() {
   JsonObject ble = doc.createNestedObject("ble");
   JsonArray bleDevices = ble.createNestedArray("devices");
 
-  BLEScanResults results = bleScanner->start(BLE_SCAN_DURATION_SEC, false);
-  int count = results.getCount();
+  // FIX: start() returns a pointer in Core 3.x
+  BLEScanResults* results = bleScanner->start(BLE_SCAN_DURATION_SEC, false);
+  int count = results->getCount();
 
   for (int i = 0; i < count; i++) {
-    BLEAdvertisedDevice d = results.getDevice(i);
+    BLEAdvertisedDevice d = results->getDevice(i);
     JsonObject dev = bleDevices.createNestedObject();
+
     dev["mac"] = d.getAddress().toString().c_str();
     dev["rssi"] = d.getRSSI();
 
@@ -91,13 +93,17 @@ void loop() {
     if (d.haveServiceUUID()) {
       dev["service_uuid"] = d.getServiceUUID().toString().c_str();
     }
+
+    // FIX: use Arduino String, not std::string
     if (d.haveManufacturerData()) {
-      std::string mfg = d.getManufacturerData();
-      char hex[2 * mfg.length() + 1];
+      String mfg = d.getManufacturerData();
+      char hex[mfg.length() * 2 + 1];
+
       for (size_t j = 0; j < mfg.length(); j++) {
         sprintf(&hex[j * 2], "%02X", (uint8_t)mfg[j]);
       }
-      hex[2 * mfg.length()] = '\0';
+      hex[mfg.length() * 2] = '\0';
+
       dev["mfg_data"] = hex;
     }
   }
@@ -109,6 +115,8 @@ void loop() {
   // ---------- Bluetooth Classic Inquiry ----------
   btClassicDoc["devices"].clear();
   btInquiryDone = false;
+
+  // FIX: correct constant for Core 3.3.5
   esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, 3, 0);
 
   unsigned long t0 = millis();
@@ -132,4 +140,3 @@ void loop() {
 
   delay(1000);
 }
-
