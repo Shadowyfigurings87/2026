@@ -1,24 +1,57 @@
 import socket
 import time
-from ministries.utils.jsonl import encode_jsonl
 
-def send_jsonl_stream(generator, host, port, reconnect_delay=3):
-    while True:
-        try:
-            print(f"[RedRover] Connecting to {host}:{port}")
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-            # Keepalive so Rover1 knows if RedRover dies
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+class TcpClient:
+    """
+    Persistent TCP client to Rover1.
+    - Keeps a single connection open
+    - Reconnects on failure
+    - send(line) is safe to call from multiple threads
+    """
 
-            s.connect((host, port))
-            print("[RedRover] Connected.")
+    def __init__(self, host: str, port: int, reconnect_delay: float = 3.0):
+        self.host = host
+        self.port = port
+        self.reconnect_delay = reconnect_delay
+        self.sock = None
 
-            with s:
-                for obj in generator():
-                    line = encode_jsonl(obj)
-                    s.sendall(line.encode("utf-8"))
-        except Exception as e:
-            print(f"[RedRover] Link error: {e}, retrying in {reconnect_delay}s")
-            time.sleep(reconnect_delay)
+    def _connect(self):
+        """Connect to Rover1, retrying until successful."""
+        while True:
+            try:
+                s = socket.create_connection((self.host, self.port))
+                s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                self.sock = s
+                print(f"[tcp_client] connected to Rover1 at {self.host}:{self.port}", flush=True)
+                return
+            except Exception as e:
+                print(f"[tcp_client] connect failed: {e}, retrying in {self.reconnect_delay}s", flush=True)
+                time.sleep(self.reconnect_delay)
 
+    def send(self, line: str):
+        """
+        Send a single JSONL line to Rover1.
+        Auto-reconnects if the connection is lost.
+        """
+        if not line.endswith("\n"):
+            line = line + "\n"
+
+        if self.sock is None:
+            self._connect()
+
+        data = line.encode("utf-8")
+
+        while True:
+            try:
+                self.sock.sendall(data)
+                return
+            except Exception as e:
+                print(f"[tcp_client] send failed: {e}, reconnecting...", flush=True)
+                try:
+                    if self.sock is not None:
+                        self.sock.close()
+                except Exception:
+                    pass
+                self.sock = None
+                self._connect()
