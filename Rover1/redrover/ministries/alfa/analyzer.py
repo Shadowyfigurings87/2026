@@ -1,102 +1,62 @@
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional, Dict, Any
-
-from scapy.layers.dot11 import Dot11, Dot11Beacon, Dot11ProbeReq  # type: ignore
-from scapy.packet import Packet  # type: ignore
-
-
-@dataclass
-class FrameSummary:
-    ts: datetime
-    src: Optional[str]
-    dst: Optional[str]
-    bssid: Optional[str]
-    frame_type: str
-    ssid: Optional[str]
-    rssi: Optional[int]
+import json
+import time
+from scapy.layers.dot11 import Dot11, Dot11Beacon, Dot11ProbeReq
 
 
 class PacketAnalyzer:
-    """
-    Analyzer that turns raw 802.11 packets into JSONL-ready summaries.
+    def __init__(self, packet_queue):
+        """
+        Analyzer that consumes packets from a queue and emits JSON events.
+        """
+        self.packet_queue = packet_queue
+        self.running = True
 
-    Extend this to:
-    - feed backend ingest
-    - log anomalies
-    - trigger rover behavior
-    """
+    def stop(self):
+        """Signal the analyzer to stop."""
+        self.running = False
 
-    def summarize(self, pkt: Packet) -> Optional[FrameSummary]:
+    def _parse_packet(self, pkt):
         if not pkt.haslayer(Dot11):
             return None
 
         dot11 = pkt[Dot11]
 
-        frame_type = f"{dot11.type}/{dot11.subtype}"
         src = dot11.addr2
         dst = dot11.addr1
         bssid = dot11.addr3
+        frame_type = f"{dot11.type}/{dot11.subtype}"
+
+        # RSSI if present
+        rssi = getattr(pkt, "dBm_AntSignal", None)
+
+        # SSID for beacon/probe frames
         ssid = None
-
-        # Basic management frame parsing (beacon / probe request)
         if pkt.haslayer(Dot11Beacon) or pkt.haslayer(Dot11ProbeReq):
-            info = getattr(pkt, "info", b"")
-            if isinstance(info, bytes):
-                ssid = info.decode(errors="ignore") or None
-            else:
-                ssid = str(info)
+            if hasattr(pkt, "info"):
+                try:
+                    ssid = pkt.info.decode(errors="ignore")
+                except Exception:
+                    ssid = None
 
-        # RSSI (signal strength) is driver-dependent; sometimes appears in RadioTap
-        rssi = None
-        if hasattr(pkt, "dBm_AntSignal"):
-            try:
-                rssi = int(pkt.dBm_AntSignal)
-            except (TypeError, ValueError):
-                rssi = None
-
-        return FrameSummary(
-            ts=datetime.utcnow(),
-            src=src,
-            dst=dst,
-            bssid=bssid,
-            frame_type=frame_type,
-            ssid=ssid,
-            rssi=rssi,
-        )
-
-    def to_dict(self, summary: FrameSummary) -> Dict[str, Any]:
-        """
-        Convert FrameSummary into a JSON-serializable dict suitable for JSONL.
-        """
-        return {
-            "ts": summary.ts.isoformat(),
-            "src": summary.src,
-            "dst": summary.dst,
-            "bssid": summary.bssid,
-            "frame_type": summary.frame_type,
-            "ssid": summary.ssid,
-            "rssi": summary.rssi,
+        event = {
+            "ts": time.time(),
+            "src": src,
+            "dst": dst,
+            "bssid": bssid,
+            "frame_type": frame_type,
+            "ssid": ssid,
+            "rssi": rssi,
+            "ministry": "alfa",
+            "kind": "wifi_frame",
         }
 
-    def handle_packet(self, pkt: Packet) -> Optional[Dict[str, Any]]:
-        """
-        Public entry point to connect to PacketSniffer.
+        return event
 
-        Returns a JSON-serializable dict, or None if packet is ignored.
-        """
-        summary = self.summarize(pkt)
-        if summary is None:
-            return None
-
-        obj = self.to_dict(summary)
-
-        # You can still log locally if you want:
-        # print(
-        #     f"[{obj['ts']}] type={obj['frame_type']} "
-        #     f"src={obj['src']} dst={obj['dst']} bssid={obj['bssid']} "
-        #     f"ssid={obj['ssid']!r} rssi={obj['rssi']}"
-        # )
-
-        return obj
+    def run(self):
+        """Main loop — called by main.py inside its own thread."""
+        while self.running:
+            pkt = self.packet_queue.get()
+            parsed = self._parse_packet(pkt)
+            if parsed:
+                print(json.dumps(parsed), flush=True)
 

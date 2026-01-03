@@ -1,41 +1,62 @@
+import threading
+import queue
 import time
-from ministries.alfa.packet_sniffer import PacketSniffer
-from ministries.alfa.analyzer import PacketAnalyzer
-from ministries.utils.jsonl import encode_jsonl
+import signal
+import sys
+
+from .packet_sniffer import PacketSniffer
+from .channel_hopper import ChannelHopper
+from .analyzer import PacketAnalyzer
 
 
 def main():
-    print("[alfa] ministry starting", flush=True)
+    print("[alfa] ministry starting")
 
-    analyzer = PacketAnalyzer()
-    sniffer = PacketSniffer(interface="wlan1", bpf_filter=None)
+    # Shared queue for sniffer → analyzer
+    packet_queue = queue.Queue()
 
+    # Instantiate ministries
+    sniffer = PacketSniffer(
+        interface="wlan1",
+        packet_queue=packet_queue
+    )
+
+    analyzer = PacketAnalyzer(
+        packet_queue=packet_queue
+    )
+
+    hopper = ChannelHopper(
+        interface="wlan1mon",
+        dwell_time=0.5
+    )
+
+    # Thread wrappers
+    sniffer_thread = threading.Thread(target=sniffer.run, daemon=True)
+    analyzer_thread = threading.Thread(target=analyzer.run, daemon=True)
+    hopper_thread = threading.Thread(target=hopper.run, daemon=True)
+
+    # Start ministries
+    sniffer_thread.start()
+    analyzer_thread.start()
+    hopper_thread.start()
+
+    # Graceful shutdown handler
+    def shutdown(signum, frame):
+        print("\n[alfa] shutdown ritual invoked")
+        sniffer.stop()
+        analyzer.stop()
+        hopper.stop()
+        time.sleep(0.5)
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
+
+    # Keep main thread alive
     while True:
-        try:
-            # sniff_stream() is an infinite generator
-            for pkt in sniffer.sniff_stream():
-                try:
-                    obj = analyzer.handle_packet(pkt)
-                    if obj is None:
-                        continue
-
-                    # Add ministry + timestamp
-                    obj["ministry"] = "alfa"
-                    obj["ts"] = time.time()
-
-                    # Output JSONL to stdout
-                    print(encode_jsonl(obj), end="", flush=True)
-
-                except Exception as e:
-                    print(f"[alfa] packet error: {e}", flush=True)
-                    time.sleep(0.05)
-
-        except Exception as e:
-            print(f"[alfa] sniffer error: {e}", flush=True)
-            time.sleep(1)
-            # Recreate sniffer in case interface resets
-            sniffer = PacketSniffer(interface="wlan1", bpf_filter=None)
+        time.sleep(1)
 
 
 if __name__ == "__main__":
     main()
+

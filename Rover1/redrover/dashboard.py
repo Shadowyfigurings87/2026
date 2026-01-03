@@ -21,7 +21,6 @@ ENV["ALFA_IFACE"] = "wlan1"
 # ---------------------------------------------------------
 PROCESSES = [
     {"name": "alfa",   "cmd": ["python", "-m", "ministries.alfa.main"]},
-    {"name": "camera", "cmd": ["python", "-m", "ministries.camera.cam"]},
     {"name": "esp32",  "cmd": ["python", "-m", "ministries.esp32.esp32"]},
 ]
 
