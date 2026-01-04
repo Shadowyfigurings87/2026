@@ -1,6 +1,6 @@
 import threading
 import time
-from utils.logging_config import log_event
+from backend.utils.logging_config import log_event
 
 # Shared RF metrics state
 rf_metrics = {

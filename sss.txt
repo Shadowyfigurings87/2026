@@ -1,4 +1,4 @@
-ssh -p 17922 balthazaar1987@0.tcp.ngrok.io "/usr/local/bin/runscanner" | nc localhost 9000
+ssh -p 12610 balthazaar1987@0.tcp.ngrok.io "/usr/local/bin/runscanner" | nc localhost 9000
 
 tree -L 3
 

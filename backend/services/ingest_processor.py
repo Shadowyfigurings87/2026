@@ -1,22 +1,22 @@
 # services/ingest_processor.py
 
-from utils.mac import lookup_vendor
+from backend.utils.mac import lookup_vendor
 
 import threading
 import os
 import sqlite3
 from datetime import datetime
 
-from services.anomaly.engine import analyze_frame, config as anomaly_config
-from services.anomaly_engine import engine as ml_anomaly_engine
-from services.severity import classify_severity
-from services.clustering_engine import engine as cluster_engine
-from services.device_model import engine as device_engine
-from services.channel_model import engine as channel_engine
-from services.alert_engine import engine as alert_engine
+from backend.services.anomaly.engine import analyze_frame, config as anomaly_config
+from backend.services.anomaly_engine import engine as ml_anomaly_engine
+from backend.services.severity import classify_severity
+from backend.services.clustering_engine import engine as cluster_engine
+from backend.services.device_model import engine as device_engine
+from backend.services.channel_model import engine as channel_engine
+from backend.services.alert_engine import engine as alert_engine
 
-from utils.logging_config import log_event
-import services.observatory as observatory
+from backend.utils.logging_config import log_event
+import backend.services.observatory as observatory
 
 
 # --- DB helpers -------------------------------------------------------------

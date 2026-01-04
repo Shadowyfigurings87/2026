@@ -2,7 +2,7 @@ import sqlite3
 import time
 from queue import Empty
 import threading
-from utils.logging_config import log_event
+from backend.utils.logging_config import log_event
 log_event("db_writer", "INFO", "startup_test", {})
 
 BATCH_SIZE = 100
@@ -10,7 +10,7 @@ BATCH_TIMEOUT = 0.25
 
 
 def db_writer_thread(db_path, ingest_queue):
-    from utils.logging_config import log_event
+    from backend.utils.logging_config import log_event
     conn = sqlite3.connect(db_path, isolation_level=None)
     cursor = conn.cursor()
 

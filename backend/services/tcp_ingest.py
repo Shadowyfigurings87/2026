@@ -4,8 +4,8 @@ import json
 import time
 from queue import Queue
 
-from services.shared_queue import ingest_queue  
-from utils.logging_config import log_event
+from backend.services.shared_queue import ingest_queue  
+from backend.utils.logging_config import log_event
 
 
 def handle_client(conn, addr):

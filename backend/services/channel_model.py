@@ -5,7 +5,7 @@ import threading
 import numpy as np
 from collections import defaultdict, deque
 
-from utils.logging_config import log_event
+from backend.utils.logging_config import log_event
 
 PROFILE_WINDOW = 2000      # frames per channel to keep
 MIN_PROFILE_SIZE = 100     # minimum frames before scoring

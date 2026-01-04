@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 import sqlite3
 import os
-from utils.logging_config import log_event
+from backend.utils.logging_config import log_event
 
 router = APIRouter()
 

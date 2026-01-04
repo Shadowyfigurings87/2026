@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from services.shared_queue import ingest_queue
+from backend.services.shared_queue import ingest_queue
 
 router = APIRouter(prefix="/dashboard")
 

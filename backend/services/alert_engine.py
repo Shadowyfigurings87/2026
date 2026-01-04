@@ -5,7 +5,7 @@ import requests
 import smtplib
 from email.mime.text import MIMEText
 
-from utils.logging_config import log_event
+from backend.utils.logging_config import log_event
 
 
 class AlertEngine:

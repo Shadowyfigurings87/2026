@@ -1,7 +1,7 @@
 # services/anomaly/rules.py
 
-from utils.logging_config import log_event
-from utils.mac import lookup_vendor
+from backend.utils.logging_config import log_event
+from backend.utils.mac import lookup_vendor
 import time
 from collections import defaultdict, deque
 

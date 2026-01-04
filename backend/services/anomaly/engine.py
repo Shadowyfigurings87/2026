@@ -5,12 +5,12 @@ from datetime import datetime, timedelta, timezone
 import sqlite3
 import yaml
 
-from services.anomaly.rules import RULES
-from services.anomaly import rules as rule_module
-from services.anomaly.scorer import compute_severity
-from services.alert_engine import engine as alert_engine
-from utils.time import now_iso
-from services import observatory
+from backend.services.anomaly.rules import RULES
+from backend.services.anomaly import rules as rule_module
+from backend.services.anomaly.scorer import compute_severity
+from backend.services.alert_engine import engine as alert_engine
+from backend.utils.time import now_iso
+from backend.services import observatory
 
 # ---------------------------------------------------------------------------
 # Load config

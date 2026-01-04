@@ -1,7 +1,7 @@
 # tools/validate_db.py
 
 import sqlite3
-from utils.config import get_db_path
+from backend.utils.config import get_db_path
 
 
 REQUIRED_TABLES = [

@@ -3,6 +3,7 @@ from typing import Optional
 import sqlite3
 import os
 import time
+from fastapi import APIRouter, Request
 
 router = APIRouter(prefix="/rover", tags=["rover"])
 
@@ -105,7 +106,7 @@ def rover_command(cmd: dict):
     )
 
     # Push into TCP downlink queue
-    from services.tcp_ingest import command_queue
+    from backend.services.tcp_ingest import command_queue
     command_queue.put({
         "kind": "command",
         "ts": ts,
@@ -139,5 +140,3 @@ def rover_camera_page(request: Request):
 def rover_camera_stream():
     return RedirectResponse("http://your-camera-ip-or-stream-url")
 
-
-oldtimeytreesll

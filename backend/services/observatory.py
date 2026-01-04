@@ -1,7 +1,7 @@
 import threading
 import time
 from collections import deque
-from utils.logging_config import log_event
+from backend.utils.logging_config import log_event
 from prometheus_client import Gauge, Counter
 import json
 

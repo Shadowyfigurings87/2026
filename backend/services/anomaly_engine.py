@@ -6,7 +6,7 @@ import pickle
 import numpy as np
 from sklearn.ensemble import IsolationForest
 
-from utils.logging_config import log_event
+from backend.utils.logging_config import log_event
 
 MODEL_PATH = "data/anomaly_model.pkl"
 

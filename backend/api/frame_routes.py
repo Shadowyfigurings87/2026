@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 import sqlite3
 import os
-from utils.logging_config import log_event
+from backend.utils.logging_config import log_event
 
 router = APIRouter(prefix="/dashboard")
 

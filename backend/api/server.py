@@ -3,17 +3,17 @@ from fastapi.responses import Response
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # Import FastAPI routers (NOT Flask blueprints)
-from api.observatory_routes import router as observatory_router
-from api.ingest_routes import router as ingest_router
-from api.system_routes import router as system_router
-from api.sensors_routes import router as sensors_router
-from api.anomaly_routes import router as anomaly_router
-from api.frame_routes import router as frame_router
-from api.device_routes import router as device_router
-from api.channel_routes import router as channel_router
-from api.threat_routes import router as threat_router
-from api.pages_routes import router as pages_router
-from api.rover_routes import router as rover_router
+from backend.api.observatory_routes import router as observatory_router
+from backend.api.ingest_routes import router as ingest_router
+from backend.api.system_routes import router as system_router
+from backend.api.sensors_routes import router as sensors_router
+from backend.api.anomaly_routes import router as anomaly_router
+from backend.api.frame_routes import router as frame_router
+from backend.api.device_routes import router as device_router
+from backend.api.channel_routes import router as channel_router
+from backend.api.threat_routes import router as threat_router
+from backend.api.pages_routes import router as pages_router
+from backend.api.rover_routes import router as rover_router
 
 app = FastAPI()
 

@@ -5,7 +5,7 @@ import threading
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
 
-from utils.logging_config import log_event
+from backend.utils.logging_config import log_event
 
 CLUSTER_COUNT = 5
 TRAIN_INTERVAL = 60
