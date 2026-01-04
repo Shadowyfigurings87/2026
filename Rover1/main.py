@@ -8,7 +8,7 @@ def main():
     start_arduino_threads(port="/dev/ttyACM0", baud=115200)
 
     # Start RedRover link server
-    start_redrover_server(host="0.0.0.0", port=9100)
+    start_redrover_server(host="0.0.0.0", port=9000)
 
     # Unified telemetry stream
     stream = merged_stream()

@@ -1,27 +1,79 @@
-from arduino import arduino_command_queue
+from arduino import write_to_arduino
 
-def enqueue_motor_command(direction, speed):
-    """
-    direction: 'FWD' or 'REV' or 'STOP'
-    speed: 0-255
-    """
-    cmd = {
-        "type": "motor",
-        "direction": direction,
-        "speed": int(speed),
-    }
-    arduino_command_queue.put(cmd)
-
+# ---------------------------------------------------------
+# Entry point for host → Rover1 commands
+# ---------------------------------------------------------
 def handle_command_packet(packet):
     """
-    packet: dict from host, e.g.
-    {"kind":"command","target":"motor","direction":"FWD","speed":120}
+    Expected packet examples:
+      { "ministry":"control", "action":"actuator", "direction":"forward", "speed":120 }
+      { "ministry":"control", "action":"pwm", "value":180 }
+      { "ministry":"control", "action":"direction", "value":"reverse" }
     """
-    if packet.get("kind") != "command":
+    if packet.get("ministry") != "control":
         return
 
-    target = packet.get("target")
-    if target == "motor":
-        direction = packet.get("direction", "STOP")
-        speed = packet.get("speed", 0)
-        enqueue_motor_command(direction, speed)
+    action = packet.get("action")
+
+    if action == "actuator":
+        return _handle_actuator(packet)
+
+    if action == "pwm":
+        return _handle_pwm(packet)
+
+    if action == "direction":
+        return _handle_direction(packet)
+
+    print(f"[Motor] Unknown action: {action}")
+
+
+# ---------------------------------------------------------
+# BTS7960 Actuator Control
+# ---------------------------------------------------------
+def _handle_actuator(packet):
+    direction = packet.get("direction", "").lower()
+    speed = int(packet.get("speed", 0))
+    speed = max(0, min(speed, 255))
+
+    if direction == "forward":
+        cmd = f"ACT:FWD:{speed}"
+    elif direction == "reverse":
+        cmd = f"ACT:REV:{speed}"
+    elif direction == "stop":
+        cmd = "ACT:STOP"
+    else:
+        print(f"[Motor] Invalid actuator direction: {direction}")
+        return
+
+    print(f"[Motor] → Arduino: {cmd}")
+    write_to_arduino(cmd)
+
+
+# ---------------------------------------------------------
+# PWM Spindle / Motor Control
+# ---------------------------------------------------------
+def _handle_pwm(packet):
+    value = int(packet.get("value", 0))
+    value = max(0, min(value, 255))
+
+    cmd = f"PWM:{value}"
+    print(f"[Motor] → Arduino: {cmd}")
+    write_to_arduino(cmd)
+
+
+# ---------------------------------------------------------
+# Optocoupler Direction Control
+# ---------------------------------------------------------
+def _handle_direction(packet):
+    value = packet.get("value", "").lower()
+
+    if value == "forward":
+        cmd = "DIR:FWD"
+    elif value == "reverse":
+        cmd = "DIR:REV"
+    else:
+        print(f"[Motor] Invalid direction value: {value}")
+        return
+
+    print(f"[Motor] → Arduino: {cmd}")
+    write_to_arduino(cmd)
