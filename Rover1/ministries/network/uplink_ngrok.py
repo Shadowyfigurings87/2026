@@ -52,13 +52,21 @@ def send_telemetry_and_receive_commands(
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             sock.connect((host, port))
-
             print("[Uplink] Connected to host")
 
+            # Send handshake
             sock.sendall(
-                encode_jsonl({"ministry": "uplink", "event": "handshake", "ts": time.time()}).encode("utf-8")
+                encode_jsonl({
+                    "ministry": "uplink",
+                    "event": "handshake",
+                    "ts": time.time()
+                }).encode("utf-8")
             )
-co                args=(sock,),
+
+            # Start command listener thread
+            listener = threading.Thread(
+                target=_command_listener,
+                args=(sock,),
                 daemon=True,
                 name="HostCommandListener"
             )
