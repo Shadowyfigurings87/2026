@@ -18,7 +18,7 @@ def main():
     send_telemetry_and_receive_commands(
         generator=stream,
         host="2.tcp.ngrok.io",
-        port=9000,
+        port=15814,
     )
 
 if __name__ == "__main__":
