@@ -11,6 +11,8 @@ PORT = 5000
 
 def handle_client(conn, addr):
     print(f"[Host] Rover connected from {addr}")
+    data = conn.recv(1)
+    print("First byte:", data)
 
     with conn, conn.makefile("r") as f:
         for line in f:
