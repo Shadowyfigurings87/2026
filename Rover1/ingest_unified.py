@@ -1,6 +1,7 @@
 import json
 import time
 from collections import deque
+from datetime import datetime
 
 from redrover_link.tcp_server import redrover_queue
 from arduino import arduino_stream
@@ -54,7 +55,7 @@ class JitterSmoother:
 
         delta = ts - self.last_ts
         if delta <= 0:
-            ts = self.last_ts + 0.001
+            ts = self.last.last_ts + 0.001
             self.last_ts = ts
             return ts
 
@@ -102,14 +103,16 @@ def merged_stream():
       - Queue pressure monitoring
       - Jitter smoothing on timestamps
       - Local health logging
-    Sources:
-      - Arduino telemetry (local)
-      - RedRover telemetry (remote)
-      - Camera telemetry (local)
-      - Heartbeat
-      - Watchdog
+      - ISO8601 timestamp injection (required by host DB)
     """
-    yield {"ministry": "system", "event": "startup", "ts": time.time()}
+
+    # Startup packet
+    yield {
+        "ministry": "system",
+        "event": "startup",
+        "ts": time.time(),
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
 
     arduino_gen = arduino_stream()
     redrover_gen = redrover_stream()
@@ -125,7 +128,6 @@ def merged_stream():
         "watchdog": JitterSmoother(),
     }
 
-    # Priority weights: how many pulls per loop
     weights = {
         "arduino": 3,
         "redrover": 2,
@@ -134,15 +136,15 @@ def merged_stream():
         "watchdog": 1,
     }
 
-    # Queue pressure thresholds
     high_pressure_threshold = 500
     critical_pressure_threshold = 1000
     last_pressure_log = 0
     pressure_log_interval = 5  # seconds
 
     while True:
+
         # -----------------------------
-        # 1. Arduino (highest priority)
+        # 1. Arduino
         # -----------------------------
         for _ in range(weights["arduino"]):
             try:
@@ -152,15 +154,14 @@ def merged_stream():
                 ts = obj.get("ts", time.time())
                 obj["ts"] = smoothers["arduino"].smooth(ts)
 
+                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
                 yield obj
-            except StopIteration:
-                break
             except Exception:
                 break
 
-        # --------------------------------
-        # 2. RedRover (RF + ESP32 telemetry)
-        # --------------------------------
+        # -----------------------------
+        # 2. RedRover
+        # -----------------------------
         for _ in range(weights["redrover"]):
             try:
                 obj = next(redrover_gen)
@@ -169,8 +170,7 @@ def merged_stream():
                 ts = obj.get("ts", time.time())
                 obj["ts"] = smoothers["redrover"].smooth(ts)
 
-                # Queue pressure monitoring
-                qsize = None
+                # Queue pressure
                 try:
                     qsize = redrover_queue.qsize()
                     obj["_queue_pressure"] = qsize
@@ -178,16 +178,15 @@ def merged_stream():
                     obj["_queue_pressure"] = None
 
                 now = time.time()
-                if qsize is not None and now - last_pressure_log > pressure_log_interval:
+                if obj.get("_queue_pressure") is not None and now - last_pressure_log > pressure_log_interval:
                     if qsize > critical_pressure_threshold:
                         log_health("redrover_queue_critical", {"qsize": qsize})
                     elif qsize > high_pressure_threshold:
                         log_health("redrover_queue_high", {"qsize": qsize})
                     last_pressure_log = now
 
+                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
                 yield obj
-            except StopIteration:
-                break
             except Exception:
                 break
 
@@ -202,9 +201,8 @@ def merged_stream():
                 ts = obj.get("ts", time.time())
                 obj["ts"] = smoothers["camera"].smooth(ts)
 
+                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
                 yield obj
-            except StopIteration:
-                break
             except Exception:
                 break
 
@@ -219,9 +217,8 @@ def merged_stream():
                 ts = obj.get("ts", time.time())
                 obj["ts"] = smoothers["heartbeat"].smooth(ts)
 
+                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
                 yield obj
-            except StopIteration:
-                break
             except Exception:
                 break
 
@@ -236,9 +233,8 @@ def merged_stream():
                 ts = obj.get("ts", time.time())
                 obj["ts"] = smoothers["watchdog"].smooth(ts)
 
+                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
                 yield obj
-            except StopIteration:
-                break
             except Exception:
                 break
 
