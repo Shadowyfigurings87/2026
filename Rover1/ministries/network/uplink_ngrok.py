@@ -37,8 +37,8 @@ def _command_listener(sock):
 # ---------------------------------------------------------
 def send_telemetry_and_receive_commands(
     generator,
-    host="4.tcp.ngrok.io",
-    port=12479,
+    host="2.tcp.ngrok.io",
+    port=16979,
     reconnect_delay=5
 ):
     """
@@ -54,15 +54,11 @@ def send_telemetry_and_receive_commands(
             sock.connect((host, port))
 
             print("[Uplink] Connected to host")
-            
+
             sock.sendall(
                 encode_jsonl({"ministry": "uplink", "event": "handshake", "ts": time.time()}).encode("utf-8")
             )
-
-            # Start command listener thread
-            listener = threading.Thread(
-                target=_command_listener,
-                args=(sock,),
+co                args=(sock,),
                 daemon=True,
                 name="HostCommandListener"
             )
