@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 import json
+from datetime import datetime
 
 from ministries.utils.jsonl import encode_jsonl, safe_parse
 from ministries.control.motor import handle_command_packet
@@ -59,9 +60,11 @@ def send_telemetry_and_receive_commands(
                 encode_jsonl({
                     "ministry": "uplink",
                     "event": "handshake",
-                    "ts": time.time()
+                    "ts": time.time(),
+                    "timestamp": datetime.utcnow().isoformat() + "Z"
                 }).encode("utf-8")
             )
+
 
             # Start command listener thread
             listener = threading.Thread(
