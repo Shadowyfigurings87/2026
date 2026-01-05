@@ -54,6 +54,10 @@ def send_telemetry_and_receive_commands(
             sock.connect((host, port))
 
             print("[Uplink] Connected to host")
+            
+            sock.sendall(
+                encode_jsonl({"ministry": "uplink", "event": "handshake", "ts": time.time()}).encode("utf-8")
+            )
 
             # Start command listener thread
             listener = threading.Thread(

@@ -109,6 +109,7 @@ def merged_stream():
       - Heartbeat
       - Watchdog
     """
+    yield {"ministry": "system", "event": "startup", "ts": time.time()}
 
     arduino_gen = arduino_stream()
     redrover_gen = redrover_stream()
