@@ -17,7 +17,7 @@ def main():
     # Change host/port to your ngrok-exposed endpoint
     send_telemetry_and_receive_commands(
         generator=stream,
-        host="127.0.0.1",
+        host="2.tcp.ngrok.io",
         port=6000,
     )
 
