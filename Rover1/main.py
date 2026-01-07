@@ -5,7 +5,7 @@ from ministries.network.uplink_ngrok import send_telemetry_and_receive_commands
 
 def main():
     # Start Arduino reader/writer
-    start_arduino_threads(port="/dev/ttyACM0", baud=115200)
+    start_arduino_threads(port="/dev/ttyACM1", baud=115200)
 
     # Start RedRover link server
     start_redrover_server(host="0.0.0.0", port=9000)
