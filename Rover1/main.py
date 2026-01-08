@@ -1,11 +1,18 @@
-from arduino import start_arduino_threads
+from arduino import start_arduino_threads, find_working_serial_port
 from redrover_link.tcp_server import start_redrover_server
 from ingest_unified import merged_stream
 from ministries.network.uplink_ngrok import send_telemetry_and_receive_commands
 
+
 def main():
+    # Auto-detect Arduino serial port
+    port = find_working_serial_port()
+
+    if port is None:
+        raise RuntimeError("No working serial port found for Arduino")
+
     # Start Arduino reader/writer
-    start_arduino_threads(port="/dev/ttyACM1", baud=115200)
+    start_arduino_threads(port=port, baud=115200)
 
     # Start RedRover link server
     start_redrover_server(host="0.0.0.0", port=9000)
@@ -14,12 +21,13 @@ def main():
     stream = merged_stream()
 
     # Uplink to host via TCP (behind ngrok)
-    # Change host/port to your ngrok-exposed endpoint
     send_telemetry_and_receive_commands(
         generator=stream,
         host="0.tcp.ngrok.io",
         port=12996,
     )
 
+
 if __name__ == "__main__":
     main()
+

@@ -1,7 +1,6 @@
 import socket
 import threading
 import time
-import json
 from datetime import datetime
 
 from ministries.utils.jsonl import encode_jsonl, safe_parse
@@ -23,7 +22,6 @@ def _command_listener(sock):
                 if not packet:
                     continue
 
-                # Route host → Rover1 commands
                 try:
                     handle_command_packet(packet)
                 except Exception as e:
@@ -34,37 +32,63 @@ def _command_listener(sock):
 
 
 # ---------------------------------------------------------
-# Telemetry Uplink + Command Downlink
+# TCP Keepalive Configuration
+# ---------------------------------------------------------
+def _configure_keepalive(sock: socket.socket):
+    """
+    Configure aggressive TCP keepalive so dead links are detected quickly.
+    """
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 10)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 5)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+
+
+# ---------------------------------------------------------
+# Telemetry Uplink + Command Downlink (Resilient)
 # ---------------------------------------------------------
 def send_telemetry_and_receive_commands(
     generator,
     host="0.tcp.ngrok.io",
     port=12996,
-    reconnect_delay=5
+    reconnect_delay=5,
+    heartbeat_interval=5,
 ):
     """
     generator: yields telemetry dicts.
     Host is a TCP server reachable via ngrok.
+
+    Behavior:
+    - Connects to host
+    - Sends handshake
+    - Starts command listener thread
+    - Streams telemetry
+    - Sends heartbeats when quiet
+    - Reconnects forever on any failure
     """
     while True:
+        sock = None
+
         try:
             print(f"[Uplink] Connecting to host {host}:{port}")
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            _configure_keepalive(sock)
+
             sock.connect((host, port))
             print("[Uplink] Connected to host")
 
             # Send handshake
-            sock.sendall(
-                encode_jsonl({
-                    "ministry": "uplink",
-                    "event": "handshake",
-                    "ts": time.time(),
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
-                }).encode("utf-8")
-            )
+            handshake = encode_jsonl({
+                "ministry": "uplink",
+                "event": "handshake",
+                "ts": time.time(),
+                "timestamp": datetime.utcnow().isoformat() + "Z"
+            })
 
+            print("[Uplink → Host]", handshake.strip())
+            sock.sendall(handshake.encode("utf-8"))
 
             # Start command listener thread
             listener = threading.Thread(
@@ -75,17 +99,52 @@ def send_telemetry_and_receive_commands(
             )
             listener.start()
 
-            # Send telemetry on same socket
+            # Telemetry + heartbeat loop
+            last_send = time.time()
+
             with sock:
                 for obj in generator:
+                    now = time.time()
+
+                    # Heartbeat if quiet
+                    if now - last_send > heartbeat_interval:
+                        hb = encode_jsonl({
+                            "ministry": "uplink",
+                            "event": "heartbeat",
+                            "ts": now,
+                            "timestamp": datetime.utcnow().isoformat() + "Z"
+                        })
+
+                        print("[Uplink → Host]", hb.strip())
+
+                        try:
+                            sock.sendall(hb.encode("utf-8"))
+                            last_send = now
+                        except Exception as e:
+                            print(f"[Uplink] Heartbeat send error: {e}")
+                            break
+
+                    # Send telemetry
                     try:
                         line = encode_jsonl(obj)
+                        print("[Uplink → Host]", line.strip())
                         sock.sendall(line.encode("utf-8"))
+                        last_send = now
+
                     except Exception as e:
                         print(f"[Uplink] Telemetry send error: {e}")
                         break  # triggers reconnect
 
+            print(f"[Uplink] Socket closed, reconnecting in {reconnect_delay}s")
+
         except Exception as e:
             print(f"[Uplink] Error: {e}, reconnecting in {reconnect_delay}s")
+
+        finally:
+            if sock is not None:
+                try:
+                    sock.close()
+                except Exception:
+                    pass
+
             time.sleep(reconnect_delay)
-            continue
