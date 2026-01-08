@@ -24,7 +24,7 @@ PROCESSES = [
     {"name": "esp32",  "cmd": ["python", "-m", "ministries.esp32.esp32"]},
 ]
 
-ROVER1_HOST = "192.168.1.50"
+ROVER1_HOST = "192.168.5.2"
 ROVER1_PORT = 9000
 
 
