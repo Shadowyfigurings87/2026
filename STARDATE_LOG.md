@@ -132,4 +132,16 @@ Stable, low‑latency
 
 No need for RedRover to run ngrok
 
-Keeps uplink logic centralized
+Keeps uplink logic centralized⭐ Unified Stardate Entry — The Purification of the Host & Completion of the Sovereign Stream
+Stardate 2026.01.09 — Canonical Lineage Update
+
+The legacy backend architecture was formally dissolved. All previous FastAPI routers, observatory endpoints, Prometheus metrics, Grafana dashboards, and anomaly‑detection modules were retired. In their place, a new minimal backend — HOST — was created as a purified ingestion organism. HOST now contains only three ministries: TCP Ingest, Ingest Processor, and DB Writer. All other components were intentionally removed to eliminate complexity, reduce failure surfaces, and establish a clean foundation for the next era of Rover1’s evolution.
+
+This restructuring coincided with the successful activation of the sovereign telemetry stream, completing the full chain from RedRover → Rover1 → Host. RedRover now emits raw sensor truth (camera, RF, ESP32, future modules). Rover1 merges ministries, injects timestamps, manages the uplink, and forwards a unified JSONL stream. Host receives, processes, and archives all telemetry into a single sovereign event log (telemetry_raw), with camera frames written to disk via the frame store. This marks the first moment in the lineage where all ministries — camera, Alfa RF, Arduino, heartbeat, watchdog, uplink — operated simultaneously and coherently under systemd governance without crashes, port conflicts, or restart loops.
+
+The new Host is intentionally minimal: no dashboard, no API, no observatory, no metrics, no anomaly engine. It is a pure ingestion node, a stable backbone upon which the next generation of observability tools will be built. This purification represents a decisive architectural pivot: the old backend is gone, and the new Host stands as a clean slate for future development.
+
+With the sovereign stream stabilized, the next era begins. Planned expansions include a new dashboard, a redesigned API, a modern observatory, Prometheus metrics, Grafana visualizations, anomaly detection, ministry‑specific analytics, and lineage‑aware interfaces. The system now has a gravitational center, a stable bloodstream, and a unified telemetry soul. All future ministries, dashboards, and intelligence modules will grow from this purified foundation.
+
+Designation:  
+Stardate 2026.01.09 — The Purification of the Host & The Birth of the Sovereign Stream
