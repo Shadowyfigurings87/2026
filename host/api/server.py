@@ -12,21 +12,29 @@ PORT = 5000
 def handle_client(conn, addr):
     print(f"[Host] Rover connected from {addr}")
 
-    with conn, conn.makefile("r") as f:
-        for line in f:
-            try:
-                obj = json.loads(line)
-            except:
-                continue
+    try:
+        with conn, conn.makefile("r") as f:
+            for line in f:
+                print("[Host] RAW LINE:", repr(line))   # <--- ADD THIS
+                try:
+                    obj = json.loads(line)
+                except Exception as e:
+                    print("[Host] JSON decode error:", e)
+                    continue
 
-            ts = obj.get("ts")
-            timestamp_utc = obj.get("timestamp")
-            ministry = obj.get("ministry", "unknown")
+                try:
+                    ts = obj.get("ts")
+                    timestamp_utc = obj.get("timestamp")
+                    ministry = obj.get("ministry", "unknown")
 
-            write_queue.put((
-                "INSERT INTO telemetry_raw (timestamp_utc, ts, ministry, payload) VALUES (?, ?, ?, ?)",
-                (timestamp_utc, ts, ministry, json.dumps(obj))
-            ))
+                    write_queue.put((
+                        "INSERT INTO telemetry_raw (timestamp_utc, ts, ministry, payload) VALUES (?, ?, ?, ?)",
+                        (timestamp_utc, ts, ministry, json.dumps(obj))
+                    ))
+                except Exception as e:
+                    print("[Host] Processing error:", e)
+    except Exception as e:
+        print("[Host] Client handler crashed:", e)
 
 def start_server():
     start_db_writer()

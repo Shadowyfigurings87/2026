@@ -1,5 +1,3 @@
-# host/services/db_writer.py
-
 import sqlite3
 import threading
 import queue
@@ -10,7 +8,11 @@ DB_PATH = Path(__file__).resolve().parent.parent / "host.db"
 write_queue = queue.Queue()
 
 def db_writer_thread():
-    conn = sqlite3.connect(DB_PATH)
+    # Thread-safe SQLite connection
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA busy_timeout=5000;")
     cur = conn.cursor()
 
     while True:
