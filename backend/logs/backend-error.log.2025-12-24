@@ -1,2 +1,0 @@
-{"timestamp": "2025-12-25T04:23:46.041196Z", "component": "api", "severity": "ERROR", "event": "recent_anomalies_failed", "details": {"error": "no such column: frame_timestamp"}}
-{"timestamp": "2025-12-25T04:23:51.068830Z", "component": "api", "severity": "ERROR", "event": "recent_anomalies_failed", "details": {"error": "no such column: frame_timestamp"}}
