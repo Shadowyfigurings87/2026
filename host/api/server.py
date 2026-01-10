@@ -5,6 +5,7 @@ import threading
 import json
 from datetime import datetime
 from host.services.db_writer import write_queue, start_db_writer
+from services.metrics import ingest_total, rf_frames_total
 
 HOST = "0.0.0.0"
 PORT = 5000
@@ -15,12 +16,22 @@ def handle_client(conn, addr):
     try:
         with conn, conn.makefile("r") as f:
             for line in f:
-                print("[Host] RAW LINE:", repr(line))   # <--- ADD THIS
+                print("[Host] RAW LINE:", repr(line))
+
                 try:
                     obj = json.loads(line)
                 except Exception as e:
                     print("[Host] JSON decode error:", e)
                     continue
+
+                # -----------------------------
+                # PROMETHEUS METRICS UPDATE
+                # -----------------------------
+                ingest_total.inc()
+
+                if obj.get("ministry") == "alfa":
+                    rf_frames_total.inc()
+                # -----------------------------
 
                 try:
                     ts = obj.get("ts")
@@ -33,6 +44,7 @@ def handle_client(conn, addr):
                     ))
                 except Exception as e:
                     print("[Host] Processing error:", e)
+
     except Exception as e:
         print("[Host] Client handler crashed:", e)
 

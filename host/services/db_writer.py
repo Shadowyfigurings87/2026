@@ -2,6 +2,8 @@ import sqlite3
 import threading
 import queue
 from pathlib import Path
+from services.metrics import db_queue_depth, db_write_latency
+import time
 
 DB_PATH = Path(__file__).resolve().parent.parent / "host.db"
 
@@ -16,10 +18,20 @@ def db_writer_thread():
     cur = conn.cursor()
 
     while True:
+        # Update queue depth metric
+        db_queue_depth.set(write_queue.qsize())
+
         stmt, params = write_queue.get()
+
         try:
+            start = time.time()
+
             cur.execute(stmt, params)
             conn.commit()
+
+            # Record write latency
+            db_write_latency.observe(time.time() - start)
+
         except Exception as e:
             print(f"[DB] Write error: {e}")
 
