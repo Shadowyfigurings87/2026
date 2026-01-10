@@ -1,16 +1,22 @@
+# host/services/db_writer.py
+
 import sqlite3
 import threading
 import queue
-from pathlib import Path
-from services.metrics import db_queue_depth, db_write_latency
 import time
+from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent.parent / "host.db"
 
+# Global write queue
 write_queue = queue.Queue()
 
+
 def db_writer_thread():
-    # Thread-safe SQLite connection
+    """
+    Dedicated SQLite writer thread.
+    Ensures all writes happen sequentially and safely.
+    """
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
@@ -18,23 +24,33 @@ def db_writer_thread():
     cur = conn.cursor()
 
     while True:
-        # Update queue depth metric
-        db_queue_depth.set(write_queue.qsize())
 
         stmt, params = write_queue.get()
 
-        try:
-            start = time.time()
+        start = time.perf_counter()
 
+        try:
             cur.execute(stmt, params)
             conn.commit()
 
-            # Record write latency
-            db_write_latency.observe(time.time() - start)
+            # Metrics: success
+            db_writes_total.inc()
 
         except Exception as e:
             print(f"[DB] Write error: {e}")
+            db_write_errors_total.inc()
+
+        finally:
+            duration = time.perf_counter() - start
+
+            # Metrics: latency
+            db_write_latency_ms.set(duration * 1000.0)
+            db_write_latency_histogram.observe(duration)
+
 
 def start_db_writer():
+    """
+    Launch the DB writer thread.
+    """
     t = threading.Thread(target=db_writer_thread, daemon=True)
     t.start()
