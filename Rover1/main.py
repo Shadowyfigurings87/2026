@@ -23,8 +23,8 @@ def main():
     # Uplink to host via TCP (behind ngrok)
     send_telemetry_and_receive_commands(
         generator=stream,
-        host="0.tcp.ngrok.io",
-        port=12996,
+        host="4.tcp.ngrok.io",
+        port=14846,
     )
 
 
