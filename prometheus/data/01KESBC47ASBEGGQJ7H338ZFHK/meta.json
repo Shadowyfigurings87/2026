@@ -1,0 +1,17 @@
+{
+	"ulid": "01KESBC47ASBEGGQJ7H338ZFHK",
+	"minTime": 1768160251460,
+	"maxTime": 1768161600000,
+	"stats": {
+		"numSamples": 12768,
+		"numSeries": 57,
+		"numChunks": 114
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01KESBC47ASBEGGQJ7H338ZFHK"
+		]
+	},
+	"version": 1
+}
