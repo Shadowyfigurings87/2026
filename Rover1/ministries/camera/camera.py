@@ -2,49 +2,39 @@
 
 import time
 import base64
-import cv2  # pip install opencv-python
+from picamera2 import Picamera2
 
-
-def camera_stream(device_index=0, fps=5):
+def camera_stream(fps=5):
     """
-    Yield camera frames as JSON objects suitable for host ingestion.
-
-    Fields:
-      - ministry: "picamera2"
-      - ts: float (epoch seconds)
-      - frame: base64-encoded JPEG
-      - format: "jpeg"
-      - device: "picamera2"
+    Original working Picamera2 camera ministry.
+    Produces JSON aligned with host ingestion.
     """
-    cap = cv2.VideoCapture(device_index)
 
-    if not cap.isOpened():
-        raise RuntimeError(f"Camera device {device_index} could not be opened")
+    picam = Picamera2()
+    config = picam.create_still_configuration()
+    picam.configure(config)
+    picam.start()
 
     delay = 1.0 / fps
 
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            # Skip if frame not captured
-            time.sleep(delay)
-            continue
+        frame = picam.capture_array()
 
-        # Encode frame as JPEG
+        # Encode JPEG
+        import cv2
         success, jpeg = cv2.imencode(".jpg", frame)
         if not success:
             time.sleep(delay)
             continue
 
-        # Convert to base64 string
         b64 = base64.b64encode(jpeg.tobytes()).decode("utf-8")
 
         yield {
             "ministry": "picamera2",
             "ts": time.time(),
-            "frame": b64,              # <-- matches host ingestion
+            "frame": b64,
             "format": "jpeg",
-            "device": "picamera2",     # <-- string, consistent with host
+            "device": "picamera2",
         }
 
         time.sleep(delay)
