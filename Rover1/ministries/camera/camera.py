@@ -1,11 +1,20 @@
+# ministries/camera/camera.py
+
 import time
 import base64
-import cv2  # OpenCV (install with pip install opencv-python)
+import cv2  # pip install opencv-python
+
 
 def camera_stream(device_index=0, fps=5):
     """
-    Yield camera frames as JSON objects.
-    Encodes frames as base64 JPEG for transport.
+    Yield camera frames as JSON objects suitable for host ingestion.
+
+    Fields:
+      - ministry: "picamera2"
+      - ts: float (epoch seconds)
+      - frame: base64-encoded JPEG
+      - format: "jpeg"
+      - device: "picamera2"
     """
     cap = cv2.VideoCapture(device_index)
 
@@ -17,11 +26,14 @@ def camera_stream(device_index=0, fps=5):
     while True:
         ret, frame = cap.read()
         if not ret:
+            # Skip if frame not captured
+            time.sleep(delay)
             continue
 
         # Encode frame as JPEG
         success, jpeg = cv2.imencode(".jpg", frame)
         if not success:
+            time.sleep(delay)
             continue
 
         # Convert to base64 string
@@ -30,9 +42,9 @@ def camera_stream(device_index=0, fps=5):
         yield {
             "ministry": "picamera2",
             "ts": time.time(),
-            "frame": b64,          # <-- FIXED
+            "frame": b64,              # <-- matches host ingestion
             "format": "jpeg",
-            "device": "picamera2", # <-- FIXED
+            "device": "picamera2",     # <-- string, consistent with host
         }
 
         time.sleep(delay)

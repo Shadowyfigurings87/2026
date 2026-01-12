@@ -55,7 +55,7 @@ class JitterSmoother:
 
         delta = ts - self.last_ts
         if delta <= 0:
-            ts = self.last.last_ts + 0.001
+            ts = self.last_ts + 0.001
             self.last_ts = ts
             return ts
 
@@ -123,7 +123,7 @@ def merged_stream():
     smoothers = {
         "arduino": JitterSmoother(),
         "redrover": JitterSmoother(),
-        "camera": JitterSmoother(),
+        "picamera2": JitterSmoother(),
         "heartbeat": JitterSmoother(),
         "watchdog": JitterSmoother(),
     }
@@ -131,7 +131,7 @@ def merged_stream():
     weights = {
         "arduino": 3,
         "redrover": 2,
-        "camera": 1,
+        "picamera2": 1,
         "heartbeat": 1,
         "watchdog": 1,
     }
@@ -191,15 +191,15 @@ def merged_stream():
                 break
 
         # -----------------------------
-        # 3. Camera
+        # 3. Camera (picamera2)
         # -----------------------------
-        for _ in range(weights["camera"]):
+        for _ in range(weights["picamera2"]):
             try:
                 obj = next(cam_gen)
-                obj = ensure_ministry(obj, "camera")
+                obj = ensure_ministry(obj, "picamera2")
 
                 ts = obj.get("ts", time.time())
-                obj["ts"] = smoothers["camera"].smooth(ts)
+                obj["ts"] = smoothers["picamera2"].smooth(ts)
 
                 obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
                 yield obj
