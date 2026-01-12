@@ -1,0 +1,17 @@
+{
+	"ulid": "01KESNNSSP50ZE77SHY2E0EG11",
+	"minTime": 1768229834684,
+	"maxTime": 1768233600000,
+	"stats": {
+		"numSamples": 42978,
+		"numSeries": 57,
+		"numChunks": 344
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01KESNNSSP50ZE77SHY2E0EG11"
+		]
+	},
+	"version": 1
+}

@@ -1,0 +1,17 @@
+{
+	"ulid": "01KESS8VEWNGXM295ZS302D98Z",
+	"minTime": 1768233602748,
+	"maxTime": 1768240800000,
+	"stats": {
+		"numSamples": 79480,
+		"numSeries": 57,
+		"numChunks": 610
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01KESS8VEWNGXM295ZS302D98Z"
+		]
+	},
+	"version": 1
+}

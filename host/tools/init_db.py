@@ -6,18 +6,17 @@ Creates:
   - host/data/frames/
 """
 
-import os
 import sqlite3
 from pathlib import Path
+from host.logs.logging import info
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "host.db"
 FRAMES_DIR = BASE_DIR / "data" / "frames"
 
-
 SCHEMA = [
     # ---------------------------------------------------------
-    # Unified raw telemetry
+    # Unified raw telemetry (metadata only)
     # ---------------------------------------------------------
     """
     CREATE TABLE IF NOT EXISTS telemetry_raw (
@@ -131,11 +130,11 @@ SCHEMA = [
 
 
 def main():
-    info("Initializing Host database...")
+    info("init_db_starting")
 
     # Ensure directories exist
     FRAMES_DIR.mkdir(parents=True, exist_ok=True)
-    info(f"Ensured frame directory: {FRAMES_DIR}")
+    info("init_db_frames_dir_ready", path=str(FRAMES_DIR))
 
     # Create SQLite DB
     conn = sqlite3.connect(DB_PATH)
@@ -147,8 +146,7 @@ def main():
     conn.commit()
     conn.close()
 
-    info(f"Database initialized at: {DB_PATH}")
-    info("Done.")
+    info("init_db_complete", db_path=str(DB_PATH))
 
 
 if __name__ == "__main__":

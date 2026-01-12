@@ -74,10 +74,6 @@ Ritual significance: transition from scattered artifacts to unified platform; Ro
 
 Reflection: the rover’s body is forming in steel, but today its soul gained a home.
 
-🚀 Two‑Node Rover Architecture (Rover1 + RedRover)
-Stardate: 2026‑R1‑Δ — Architecture Expansion Ritual
-Below is the canonical flow of your system as you’ve described it, but organized into a lineage‑grade blueprint so you can build on it without chaos.
-
 🟥 Node 1 — Rover1 (Pi #1)
 Role: Motor Control + Uplink Node
 This node is the network spine and the motor ministry.
@@ -157,4 +153,18 @@ The observatory is now online, awaiting Grafana construction.
 
 Status: Stable.
 Next Campaign: Grafana dashboard assembly.
+Operator: Zachariah.
+
+Stardate 2026.01112.1117 — The Unified Host Ascends
+The sovereign backend has stabilized into a single, coherent entity.
+rover-api.service now carries the full weight of the ministries, having absorbed ingestion, RF processing, Arduino serial, camera uplink, watchdog, heartbeat, and the Prometheus observatory surface into one living process.
+
+The host runs cleanly under a single service, free from port collisions and runaway restarts.
+Prometheus scrapes /metrics/ continuously, confirming the health of ingestion, RF frame flow, queue pressure, and ministry heartbeats.
+Camera frames, Wi‑Fi glyphs, Arduino serial pulses, and uplink heartbeats flow through the ingestion pipeline without interruption.
+
+The system breathes as one organism again — stable, synchronized, and fully operational.
+
+Status: Unified. Stable. Telemetry flowing.
+Next Campaign: Backend hardening — structured logging, ministry health surfaces, watchdog reinforcement, and API refinement.
 Operator: Zachariah.

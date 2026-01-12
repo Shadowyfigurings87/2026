@@ -28,11 +28,11 @@ def camera_stream(device_index=0, fps=5):
         b64 = base64.b64encode(jpeg.tobytes()).decode("utf-8")
 
         yield {
-            "ministry": "camera",
+            "ministry": "picamera2",
             "ts": time.time(),
-            "frame_b64": b64,
+            "frame": b64,          # <-- FIXED
             "format": "jpeg",
-            "device": device_index,
+            "device": "picamera2", # <-- FIXED
         }
 
         time.sleep(delay)
