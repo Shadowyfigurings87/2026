@@ -1,3 +1,4 @@
+from host.logs.logging import info
 # services/db_reader.py
 
 import sqlite3

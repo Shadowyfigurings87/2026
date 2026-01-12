@@ -1,5 +1,7 @@
 # host/api/server.py
 
+from host.logs.wrappers import log_api
+
 import socket
 import threading
 import json
@@ -61,17 +63,17 @@ def worker_loop():
 # ---------------------------------------------------------
 
 def handle_client(conn, addr):
-    print(f"[Host] Rover connected from {addr}")
+    log_api("api_client_connected", addr=str(addr))
 
     try:
         with conn, conn.makefile("r") as f:
             for line in f:
-                print("[Host] RAW LINE:", repr(line))
+                log_api("api_raw_line", raw=line)
 
                 try:
                     obj = json.loads(line)
                 except Exception as e:
-                    print("[Host] JSON decode error:", e)
+                    log_api("api_json_decode_error", error=str(e), raw=line)
                     continue
 
                 # -----------------------------
@@ -93,14 +95,14 @@ def handle_client(conn, addr):
                         (timestamp_utc, ts, ministry, json.dumps(obj))
                     ))
                 except Exception as e:
-                    print("[Host] Processing error:", e)
+                    log_api("api_processing_error", error=str(e), payload=obj)
 
     except Exception as e:
-        print("[Host] Client handler crashed:", e)
+        log_api("api_client_handler_crashed", error=str(e), addr=str(addr))
 
 
 def start_server():
-    print("[Host] Starting ingestion server...")
+    log_api("api_ingestion_server_start")
 
     # Start DB writer thread
     start_db_writer()
@@ -114,7 +116,7 @@ def start_server():
     sock.bind((HOST, PORT))
     sock.listen(5)
 
-    print(f"[Host] Listening on {HOST}:{PORT}")
+    log_api("api_listening", host=HOST, port=PORT)
 
     while True:
         conn, addr = sock.accept()

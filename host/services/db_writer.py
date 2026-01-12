@@ -1,10 +1,19 @@
 # host/services/db_writer.py
 
+from host.logs.wrappers import log_db
+
 import sqlite3
 import threading
 import queue
 import time
 from pathlib import Path
+
+from host.services.metrics import (
+    db_writes_total,
+    db_write_errors_total,
+    db_write_latency_ms,
+    db_write_latency_histogram,
+)
 
 DB_PATH = Path(__file__).resolve().parent.parent / "host.db"
 
@@ -24,26 +33,20 @@ def db_writer_thread():
     cur = conn.cursor()
 
     while True:
-
         stmt, params = write_queue.get()
-
         start = time.perf_counter()
 
         try:
             cur.execute(stmt, params)
             conn.commit()
-
-            # Metrics: success
             db_writes_total.inc()
 
         except Exception as e:
-            print(f"[DB] Write error: {e}")
+            log_db("db_write_error", error=str(e), stmt=stmt)
             db_write_errors_total.inc()
 
         finally:
             duration = time.perf_counter() - start
-
-            # Metrics: latency
             db_write_latency_ms.set(duration * 1000.0)
             db_write_latency_histogram.observe(duration)
 

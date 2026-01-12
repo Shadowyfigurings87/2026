@@ -1,3 +1,4 @@
+from host.logs.logging import info
 from fastapi import APIRouter, Response
 from typing import List
 from host.schemas import TelemetryRecord

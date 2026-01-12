@@ -1,14 +1,15 @@
 # host/main.py
 
+from host.logs.wrappers import log_api
+
 def start_host():
-    print("Starting host service...")
-    # Import lazily so your modules load only when needed
+    log_api("host_service_start")
+
     try:
-        from .api.server import run_server
-        run_server()
+        from .api.server import start_server
+        start_server()
     except ImportError:
-        print("No server implementation yet. Add your logic in host/api/server.py")
+        log_api("host_no_server_implementation")
 
 if __name__ == "__main__":
     start_host()
-

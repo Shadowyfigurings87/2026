@@ -1,3 +1,4 @@
+from host.logs.logging import info
 # host/main.py
 
 import threading
@@ -17,7 +18,7 @@ def start_api():
     )
 
 def start_host():
-    print("Starting unified Rover Host service…")
+    info("Starting unified Rover Host service…")
 
     # Start ingestion in a background thread
     ingestion_thread = threading.Thread(target=start_ingestion, daemon=True)

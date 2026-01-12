@@ -131,11 +131,11 @@ SCHEMA = [
 
 
 def main():
-    print("Initializing Host database...")
+    info("Initializing Host database...")
 
     # Ensure directories exist
     FRAMES_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"Ensured frame directory: {FRAMES_DIR}")
+    info(f"Ensured frame directory: {FRAMES_DIR}")
 
     # Create SQLite DB
     conn = sqlite3.connect(DB_PATH)
@@ -147,8 +147,8 @@ def main():
     conn.commit()
     conn.close()
 
-    print(f"Database initialized at: {DB_PATH}")
-    print("Done.")
+    info(f"Database initialized at: {DB_PATH}")
+    info("Done.")
 
 
 if __name__ == "__main__":
