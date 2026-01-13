@@ -46,11 +46,15 @@ def main():
     ser = None
     last_port_scan = 0
 
-    # NEW: instantiate BLE event engine
+    # BLE event engine
     state_engine = BLEStateEngine(
         event_cooldown=20.0,
         rssi_delta=5
     )
+
+    # Idle suppression
+    last_real_event = time.time()
+    idle_interval = 5.0  # Only emit idle every 5 seconds of silence
 
     while True:
         try:
@@ -64,36 +68,38 @@ def main():
                         ser = open_serial(port)
 
                 if ser is None:
-                    # ESP32 not connected — emit heartbeat error
-                    obj = {
-                        "ministry": "esp32",
-                        "ts": time.time(),
-                        "status": "not_connected"
-                    }
-                    print(encode_jsonl(obj), end="", flush=True)
-                    time.sleep(1)
+                    # ESP32 not connected — emit heartbeat error once per second
+                    if time.time() - last_real_event > 1.0:
+                        obj = {
+                            "ministry": "esp32",
+                            "ts": time.time(),
+                            "status": "not_connected"
+                        }
+                        print(encode_jsonl(obj), end="", flush=True)
+                        last_real_event = time.time()
+                    time.sleep(0.1)
                     continue
 
             # Try reading a line from ESP32
             line = read_esp32_line(ser)
 
             if line is None:
-                # No data — emit idle heartbeat
-                obj = {
-                    "ministry": "esp32",
-                    "ts": time.time(),
-                    "status": "idle"
-                }
-                print(encode_jsonl(obj), end="", flush=True)
+                # Only emit idle if enough silence has passed
+                now = time.time()
+                if now - last_real_event > idle_interval:
+                    obj = {
+                        "ministry": "esp32",
+                        "ts": now,
+                        "status": "idle"
+                    }
+                    print(encode_jsonl(obj), end="", flush=True)
+                    last_real_event = now
+                time.sleep(0.05)
                 continue
 
             # Try parsing JSON from ESP32
             try:
                 data = json.loads(line)
-
-                # Expecting BLE advertisement JSON from ESP32 firmware
-                # Example:
-                # { "mac": "...", "rssi": -70, "name": "Tile", "uuids": ["..."] }
 
                 frame = {
                     "ministry": "esp32",
@@ -104,12 +110,11 @@ def main():
                     "uuids": data.get("uuids"),
                 }
 
-                # Feed into BLE state engine
                 event = state_engine.process(frame)
 
-                # Only emit meaningful BLE events
                 if event:
                     print(encode_jsonl(event), end="", flush=True)
+                    last_real_event = time.time()
 
             except json.JSONDecodeError:
                 obj = {
@@ -119,9 +124,9 @@ def main():
                     "raw": line
                 }
                 print(encode_jsonl(obj), end="", flush=True)
+                last_real_event = time.time()
 
         except Exception as e:
-            # Generic error — reset serial and retry
             obj = {
                 "ministry": "esp32",
                 "ts": time.time(),
@@ -134,3 +139,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
