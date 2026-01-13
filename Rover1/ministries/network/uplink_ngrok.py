@@ -49,8 +49,8 @@ def _configure_keepalive(sock: socket.socket):
 # ---------------------------------------------------------
 def send_telemetry_and_receive_commands(
     generator_factory,   # 🔥 CHANGED: now expects a factory, not a generator
-    host="4.tcp.ngrok.io",
-    port=14846,
+    host="2.tcp.ngrok.io",
+    port=16964,
     reconnect_delay=5,
     heartbeat_interval=5,
 ):

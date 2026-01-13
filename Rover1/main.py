@@ -20,8 +20,8 @@ def main():
     # Uplink to host via TCP (behind ngrok)
     send_telemetry_and_receive_commands(
         generator_factory=merged_stream,   # 🔥 FIXED
-        host="4.tcp.ngrok.io",
-        port=14846,
+        host="2.tcp.ngrok.io",
+        port=16964,
     )
 
 
