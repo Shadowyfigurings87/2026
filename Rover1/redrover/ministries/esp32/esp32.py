@@ -3,6 +3,7 @@ import json
 import serial
 import serial.tools.list_ports
 from ministries.utils.jsonl import encode_jsonl
+from .state_engine import BLEStateEngine
 
 
 def find_esp32_port():
@@ -45,6 +46,12 @@ def main():
     ser = None
     last_port_scan = 0
 
+    # NEW: instantiate BLE event engine
+    state_engine = BLEStateEngine(
+        event_cooldown=20.0,
+        rssi_delta=5
+    )
+
     while True:
         try:
             # If not connected, scan for ESP32 every 3 seconds
@@ -83,11 +90,27 @@ def main():
             # Try parsing JSON from ESP32
             try:
                 data = json.loads(line)
-                obj = {
+
+                # Expecting BLE advertisement JSON from ESP32 firmware
+                # Example:
+                # { "mac": "...", "rssi": -70, "name": "Tile", "uuids": ["..."] }
+
+                frame = {
                     "ministry": "esp32",
                     "ts": time.time(),
-                    "data": data
+                    "mac": data.get("mac"),
+                    "rssi": data.get("rssi"),
+                    "name": data.get("name"),
+                    "uuids": data.get("uuids"),
                 }
+
+                # Feed into BLE state engine
+                event = state_engine.process(frame)
+
+                # Only emit meaningful BLE events
+                if event:
+                    print(encode_jsonl(event), end="", flush=True)
+
             except json.JSONDecodeError:
                 obj = {
                     "ministry": "esp32",
@@ -95,8 +118,7 @@ def main():
                     "error": "bad_json",
                     "raw": line
                 }
-
-            print(encode_jsonl(obj), end="", flush=True)
+                print(encode_jsonl(obj), end="", flush=True)
 
         except Exception as e:
             # Generic error — reset serial and retry

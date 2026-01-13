@@ -4,11 +4,13 @@ from scapy.layers.dot11 import Dot11, Dot11Beacon, Dot11ProbeReq
 
 
 class PacketAnalyzer:
-    def __init__(self, packet_queue):
+    def __init__(self, packet_queue, state_engine):
         """
-        Analyzer that consumes packets from a queue and emits JSON events.
+        Analyzer that consumes packets from a queue, parses them,
+        and emits RF events using the state engine.
         """
         self.packet_queue = packet_queue
+        self.state_engine = state_engine
         self.running = True
 
     def stop(self):
@@ -38,7 +40,8 @@ class PacketAnalyzer:
                 except Exception:
                     ssid = None
 
-        event = {
+        # Build parsed frame object
+        frame = {
             "ts": time.time(),
             "src": src,
             "dst": dst,
@@ -50,13 +53,19 @@ class PacketAnalyzer:
             "kind": "wifi_frame",
         }
 
-        return event
+        return frame
 
     def run(self):
         """Main loop — called by main.py inside its own thread."""
         while self.running:
             pkt = self.packet_queue.get()
             parsed = self._parse_packet(pkt)
-            if parsed:
-                print(json.dumps(parsed), flush=True)
+            if not parsed:
+                continue
 
+            # Feed parsed frame into RF state engine
+            event = self.state_engine.process_frame(parsed)
+
+            # Only emit meaningful events
+            if event:
+                print(json.dumps(event), flush=True)

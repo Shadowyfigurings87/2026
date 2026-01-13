@@ -7,6 +7,7 @@ import sys
 from .packet_sniffer import PacketSniffer
 from .channel_hopper import ChannelHopper
 from .analyzer import PacketAnalyzer
+from .state_engine import RFStateEngine
 
 
 def main():
@@ -15,6 +16,12 @@ def main():
     # Shared queue for sniffer → analyzer
     packet_queue = queue.Queue()
 
+    # Instantiate RF state engine (event-driven RF intelligence)
+    state_engine = RFStateEngine(
+        event_cooldown=30.0,   # seconds between updates per device
+        rssi_delta=5           # minimum RSSI change to trigger update
+    )
+
     # Instantiate ministries
     sniffer = PacketSniffer(
         interface="wlan1",
@@ -22,7 +29,8 @@ def main():
     )
 
     analyzer = PacketAnalyzer(
-        packet_queue=packet_queue
+        packet_queue=packet_queue,
+        state_engine=state_engine   # <-- NEW: inject event engine
     )
 
     hopper = ChannelHopper(
@@ -59,4 +67,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
