@@ -48,24 +48,16 @@ def _configure_keepalive(sock: socket.socket):
 # Telemetry Uplink + Command Downlink (Resilient)
 # ---------------------------------------------------------
 def send_telemetry_and_receive_commands(
-    generator,
+    generator_factory,   # 🔥 CHANGED: now expects a factory, not a generator
     host="4.tcp.ngrok.io",
     port=14846,
     reconnect_delay=5,
     heartbeat_interval=5,
 ):
     """
-    generator: yields telemetry dicts.
-    Host is a TCP server reachable via ngrok.
-
-    Behavior:
-    - Connects to host
-    - Sends handshake
-    - Starts command listener thread
-    - Streams telemetry
-    - Sends heartbeats when quiet
-    - Reconnects forever on any failure
+    generator_factory: a callable that returns a fresh generator.
     """
+
     while True:
         sock = None
 
@@ -101,6 +93,9 @@ def send_telemetry_and_receive_commands(
 
             # Telemetry + heartbeat loop
             last_send = time.time()
+
+            # 🔥 NEW: create a fresh generator for this connection
+            generator = generator_factory()
 
             with sock:
                 for obj in generator:
