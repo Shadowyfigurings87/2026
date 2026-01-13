@@ -2,7 +2,10 @@ from arduino import start_arduino_threads, find_working_serial_port
 from redrover_link.tcp_server import start_redrover_server
 from ingest_unified import merged_stream
 from ministries.network.uplink_ngrok import send_telemetry_and_receive_commands
+from ministries.camera.camera import MJPEGStreamer
 
+video = MJPEGStreamer(host="your-host-ip-or-ngrok", port=5000)
+video.start()
 
 def main():
     # Auto-detect Arduino serial port

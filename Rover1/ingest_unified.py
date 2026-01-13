@@ -5,7 +5,6 @@ from datetime import datetime
 
 from redrover_link.tcp_server import redrover_queue
 from arduino import arduino_stream
-from ministries.camera.camera import camera_stream
 from ministries.health.heartbeat import heartbeat_stream
 from ministries.health.watchdog import watchdog_stream
 
@@ -116,14 +115,12 @@ def merged_stream():
 
     arduino_gen = arduino_stream()
     redrover_gen = redrover_stream()
-    cam_gen = camera_stream(fps=5)
     hb_gen = heartbeat_stream(interval=5)
     wd_gen = watchdog_stream(check_interval=3)
 
     smoothers = {
         "arduino": JitterSmoother(),
         "redrover": JitterSmoother(),
-        "picamera2": JitterSmoother(),
         "heartbeat": JitterSmoother(),
         "watchdog": JitterSmoother(),
     }
@@ -131,7 +128,6 @@ def merged_stream():
     weights = {
         "arduino": 3,
         "redrover": 2,
-        "picamera2": 1,
         "heartbeat": 1,
         "watchdog": 1,
     }
@@ -142,7 +138,6 @@ def merged_stream():
     pressure_log_interval = 5  # seconds
 
     while True:
-
         # -----------------------------
         # 1. Arduino
         # -----------------------------
@@ -191,23 +186,7 @@ def merged_stream():
                 break
 
         # -----------------------------
-        # 3. Camera (picamera2)
-        # -----------------------------
-        for _ in range(weights["picamera2"]):
-            try:
-                obj = next(cam_gen)
-                obj = ensure_ministry(obj, "picamera2")
-
-                ts = obj.get("ts", time.time())
-                obj["ts"] = smoothers["picamera2"].smooth(ts)
-
-                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
-                yield obj
-            except Exception:
-                break
-
-        # -----------------------------
-        # 4. Heartbeat
+        # 3. Heartbeat
         # -----------------------------
         for _ in range(weights["heartbeat"]):
             try:
@@ -223,7 +202,7 @@ def merged_stream():
                 break
 
         # -----------------------------
-        # 5. Watchdog
+        # 4. Watchdog
         # -----------------------------
         for _ in range(weights["watchdog"]):
             try:
