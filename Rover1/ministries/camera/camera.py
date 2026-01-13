@@ -4,13 +4,11 @@ import time
 from picamera2 import Picamera2
 import io
 
-MJPEG_BOUNDARY = b"--frame\r\n"
-MJPEG_HEADER = b"Content-Type: image/jpeg\r\n\r\n"
-
 class MJPEGStreamer:
-    def __init__(self, host, port):
+    def __init__(self, host, port, fps=10):
         self.host = host
         self.port = port
+        self.fps = fps
         self.running = False
         self.thread = None
 
@@ -19,6 +17,8 @@ class MJPEGStreamer:
         config = self.picam.create_video_configuration(main={"size": (640, 480)})
         self.picam.configure(config)
         self.picam.start()
+
+        self.frame_delay = 1.0 / fps
 
     def start(self):
         if self.running:
@@ -34,6 +34,9 @@ class MJPEGStreamer:
 
     def _stream_loop(self):
         while self.running:
+            sock = None
+            conn = None
+
             try:
                 # Connect to host
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -45,27 +48,31 @@ class MJPEGStreamer:
                     buffer = io.BytesIO()
                     self.picam.capture_file(buffer, format="jpeg")
                     jpeg_bytes = buffer.getvalue()
+                    content_length = str(len(jpeg_bytes)).encode()
 
-                    # Write MJPEG frame
-                    conn.write(MJPEG_BOUNDARY)
-                    conn.write(MJPEG_HEADER)
+                    # Write MJPEG frame (Content-Length compliant)
+                    conn.write(b"--frame\r\n")
+                    conn.write(b"Content-Type: image/jpeg\r\n")
+                    conn.write(b"Content-Length: " + content_length + b"\r\n")
+                    conn.write(b"\r\n")
                     conn.write(jpeg_bytes)
                     conn.write(b"\r\n")
                     conn.flush()
 
-                    # Control frame rate
-                    time.sleep(0.1)  # ~10 FPS
+                    time.sleep(self.frame_delay)
 
-            except Exception as e:
-                # If connection fails, retry after short delay
+            except Exception:
+                # Retry after short delay
                 time.sleep(1)
 
             finally:
                 try:
-                    conn.close()
+                    if conn:
+                        conn.close()
                 except:
                     pass
                 try:
-                    sock.close()
+                    if sock:
+                        sock.close()
                 except:
                     pass

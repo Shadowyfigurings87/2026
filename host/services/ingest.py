@@ -26,6 +26,20 @@ PORT = 5000
 # ---------------------------------------------------------
 ingestion_queue = Queue()
 
+# ---------------------------------------------------------
+# MJPEG STATE (DISK-FIRST + LIVE-READY)
+# ---------------------------------------------------------
+latest_frame_bytes = None
+latest_frame_timestamp = None
+
+# Save every Nth frame
+MJPEG_SAVE_EVERY_N = 5
+
+# Counters
+mjpeg_clients = 0
+mjpeg_frames_total = 0
+mjpeg_bytes_total = 0
+
 
 # ---------------------------------------------------------
 # PROCESSING FUNCTIONS
@@ -104,11 +118,11 @@ def worker_loop():
 
 
 # ---------------------------------------------------------
-# TCP INGESTION SERVER
+# JSON TELEMETRY HANDLER
 # ---------------------------------------------------------
 
-def handle_client(conn, addr):
-    log_ingest("ingest_client_connected", addr=str(addr))
+def handle_json_client(conn, addr):
+    log_ingest("ingest_json_client_connected", addr=str(addr))
 
     try:
         with conn, conn.makefile("r") as f:
@@ -123,7 +137,6 @@ def handle_client(conn, addr):
                     continue
 
                 # Normalize ministry/device naming
-                # If a frame is present, treat it as picamera2
                 ministry = (
                     obj.get("ministry")
                     or obj.get("device")
@@ -160,8 +173,145 @@ def handle_client(conn, addr):
                     log_ingest("ingest_db_enqueue_error", error=str(e), payload=obj)
 
     except Exception as e:
-        log_ingest("ingest_client_handler_crashed", error=str(e), addr=str(addr))
+        log_ingest("ingest_json_client_handler_crashed", error=str(e), addr=str(addr))
 
+
+# ---------------------------------------------------------
+# MJPEG STREAM HANDLER (DISK-FIRST + LIVE-READY)
+# ---------------------------------------------------------
+
+def _update_latest_frame(jpeg_bytes: bytes):
+    global latest_frame_bytes, latest_frame_timestamp
+    latest_frame_bytes = jpeg_bytes
+    latest_frame_timestamp = time.time()
+
+
+def handle_mjpeg_client(conn, addr):
+    global mjpeg_clients, mjpeg_frames_total, mjpeg_bytes_total
+
+    mjpeg_clients += 1
+    log_ingest("mjpeg_client_connected", addr=str(addr), active_clients=mjpeg_clients)
+
+    frame_counter = 0
+
+    try:
+        f = conn.makefile("rb")
+
+        while True:
+            # Expect boundary line: --frame\r\n
+            boundary = f.readline()
+            if not boundary:
+                break
+
+            if not boundary.startswith(b"--frame"):
+                log_ingest("mjpeg_unexpected_boundary", boundary=boundary[:64])
+                continue
+
+            # Read headers until blank line
+            headers = {}
+            while True:
+                line = f.readline()
+                if not line or line in (b"\r\n", b"\n"):
+                    break
+                try:
+                    key, value = line.decode("utf-8", errors="ignore").split(":", 1)
+                    headers[key.strip().lower()] = value.strip()
+                except ValueError:
+                    continue
+
+            content_length = headers.get("content-length")
+            if content_length is None:
+                log_ingest("mjpeg_missing_content_length", headers=headers)
+                break
+
+            try:
+                length = int(content_length)
+            except ValueError:
+                log_ingest("mjpeg_invalid_content_length", value=content_length)
+                break
+
+            # Read JPEG payload
+            jpeg_bytes = f.read(length)
+            if not jpeg_bytes or len(jpeg_bytes) < length:
+                log_ingest("mjpeg_incomplete_frame", expected=length, got=len(jpeg_bytes or b""))
+                break
+
+            mjpeg_frames_total += 1
+            mjpeg_bytes_total += len(jpeg_bytes)
+            frame_counter += 1
+
+            # Update in-memory latest frame for live streaming
+            _update_latest_frame(jpeg_bytes)
+
+            # Save every Nth frame
+            if frame_counter % MJPEG_SAVE_EVERY_N == 0:
+                try:
+                    path = save_frame(jpeg_bytes)
+                    log_ingest(
+                        "mjpeg_frame_saved",
+                        path=path,
+                        size=len(jpeg_bytes),
+                        total_frames=mjpeg_frames_total,
+                    )
+                except Exception as e:
+                    log_ingest("mjpeg_frame_save_error", error=str(e))
+
+            # Consume trailing CRLF after frame if present
+            _ = f.readline()
+
+    except Exception as e:
+        log_ingest("mjpeg_client_handler_crashed", error=str(e), addr=str(addr))
+
+    finally:
+        mjpeg_clients -= 1
+        try:
+            conn.close()
+        except Exception:
+            pass
+        log_ingest("mjpeg_client_disconnected", addr=str(addr), active_clients=mjpeg_clients)
+
+
+# ---------------------------------------------------------
+# PROTOCOL MULTIPLEXER
+# ---------------------------------------------------------
+
+def handle_client(conn, addr):
+    """
+    Multiplexer entrypoint.
+    Peeks at the first bytes to decide whether this is:
+      - JSON telemetry (line-delimited, starting with '{')
+      - MJPEG stream (multipart, starting with '--frame' or JPEG headers)
+    """
+    try:
+        first = conn.recv(8, socket.MSG_PEEK)
+        if not first:
+            log_ingest("ingest_empty_connection", addr=str(addr))
+            conn.close()
+            return
+
+        if first.lstrip().startswith(b"{"):
+            log_ingest("ingest_protocol_detected", protocol="json", first_bytes=first)
+            handle_json_client(conn, addr)
+
+        elif first.startswith(b"--frame") or first.startswith(b"\xff\xd8"):
+            log_ingest("ingest_protocol_detected", protocol="mjpeg", first_bytes=first)
+            handle_mjpeg_client(conn, addr)
+
+        else:
+            log_ingest("ingest_unknown_protocol_defaulting_json", first_bytes=first)
+            handle_json_client(conn, addr)
+
+    except Exception as e:
+        log_ingest("ingest_client_handler_crashed", error=str(e), addr=str(addr))
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------
+# TCP INGESTION SERVER
+# ---------------------------------------------------------
 
 def start_ingestion_server():
     log_ingest("ingestion_server_start")

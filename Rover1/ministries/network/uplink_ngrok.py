@@ -45,12 +45,44 @@ def _configure_keepalive(sock: socket.socket):
 
 
 # ---------------------------------------------------------
-# Telemetry Uplink + Command Downlink (Resilient)
+# Adaptive Non-Blocking Send
+# ---------------------------------------------------------
+def _safe_send(sock, data, max_block_ms=50):
+    """
+    Attempts to send data with a soft timeout.
+    If the socket blocks too long, returns False (drop frame).
+    """
+    sock.setblocking(False)
+    deadline = time.time() + (max_block_ms / 1000.0)
+
+    total_sent = 0
+    length = len(data)
+
+    while total_sent < length:
+        try:
+            sent = sock.send(data[total_sent:])
+            if sent == 0:
+                return False
+            total_sent += sent
+
+        except BlockingIOError:
+            if time.time() > deadline:
+                return False
+            time.sleep(0.001)
+
+        except Exception:
+            return False
+
+    return True
+
+
+# ---------------------------------------------------------
+# Telemetry Uplink + Command Downlink (Adaptive)
 # ---------------------------------------------------------
 def send_telemetry_and_receive_commands(
-    generator_factory,   # 🔥 CHANGED: now expects a factory, not a generator
-    host="2.tcp.ngrok.io",
-    port=16964,
+    generator_factory,
+    host="0.tcp.ngrok.io",
+    port=11092,
     reconnect_delay=5,
     heartbeat_interval=5,
 ):
@@ -93,9 +125,11 @@ def send_telemetry_and_receive_commands(
 
             # Telemetry + heartbeat loop
             last_send = time.time()
-
-            # 🔥 NEW: create a fresh generator for this connection
             generator = generator_factory()
+
+            # Simple adaptive controls
+            dropped_frames = 0
+            video_paused_until = 0
 
             with sock:
                 for obj in generator:
@@ -112,23 +146,47 @@ def send_telemetry_and_receive_commands(
 
                         print("[Uplink → Host]", hb.strip())
 
-                        try:
-                            sock.sendall(hb.encode("utf-8"))
-                            last_send = now
-                        except Exception as e:
-                            print(f"[Uplink] Heartbeat send error: {e}")
+                        if not _safe_send(sock, hb.encode("utf-8")):
+                            print("[Uplink] Heartbeat send blocked — reconnecting")
                             break
 
-                    # Send telemetry
-                    try:
-                        line = encode_jsonl(obj)
-                        print("[Uplink → Host]", line.strip())
-                        sock.sendall(line.encode("utf-8"))
                         last_send = now
 
-                    except Exception as e:
-                        print(f"[Uplink] Telemetry send error: {e}")
-                        break  # triggers reconnect
+                    # If uplink is congested, pause video
+                    if now < video_paused_until:
+                        continue
+
+                    # Encode telemetry or video
+                    line = encode_jsonl(obj)
+                    payload = line.encode("utf-8")
+
+                    # Telemetry always wins
+                    is_video = obj.get("ministry") == "picamera2"
+
+                    # Try sending
+                    ok = _safe_send(sock, payload)
+
+                    if not ok:
+                        if is_video:
+                            dropped_frames += 1
+                            print(f"[Uplink] Dropped video frame ({dropped_frames})")
+
+                            # If too many drops → pause video
+                            if dropped_frames >= 10:
+                                print("[Uplink] Pausing video for 1 second")
+                                video_paused_until = now + 1
+                                dropped_frames = 0
+
+                            continue  # Do NOT reconnect for video drops
+
+                        # Telemetry failed → reconnect
+                        print("[Uplink] Telemetry send blocked — reconnecting")
+                        break
+
+                    # Successful send
+                    dropped_frames = 0
+                    last_send = now
+                    print("[Uplink → Host]", line.strip())
 
             print(f"[Uplink] Socket closed, reconnecting in {reconnect_delay}s")
 
