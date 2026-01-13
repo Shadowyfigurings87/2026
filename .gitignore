@@ -109,3 +109,7 @@ docker-compose.override.yml
 *.db
 *.db-shm
 *.db-wal
+# Ignore frame store
+host/data/frames/
+*.jpg
+*.jpeg
