@@ -116,7 +116,7 @@ def merged_stream():
 
     arduino_gen = arduino_stream()
     redrover_gen = redrover_stream()
-    cam_gen = camera_stream(device_index=0, fps=5)
+    cam_gen = camera_stream(fps=5)
     hb_gen = heartbeat_stream(interval=5)
     wd_gen = watchdog_stream(check_interval=3)
 

@@ -17,12 +17,9 @@ def main():
     # Start RedRover link server
     start_redrover_server(host="0.0.0.0", port=9000)
 
-    # Unified telemetry stream
-    stream = merged_stream()
-
     # Uplink to host via TCP (behind ngrok)
     send_telemetry_and_receive_commands(
-        generator=stream,
+        generator_factory=merged_stream,   # 🔥 FIXED
         host="4.tcp.ngrok.io",
         port=14846,
     )
@@ -30,4 +27,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
