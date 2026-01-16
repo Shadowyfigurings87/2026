@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Rover Mission Control</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+
+<body>
+
+<div id="layout">
+
+    <!-- LEFT COLUMN: CAMERA -->
+    <section class="panel camera-panel">
+        <h2>Live Camera Feed</h2>
+        <img id="camera-feed" src="/camera/latest" alt="Camera Feed">
+    </section>
+
+    <!-- RIGHT COLUMN: STATUS -->
+    <section class="panel status-panel">
+        <h2>Rover Status</h2>
+
+        <div class="status-item">
+            <span class="label">Heartbeat:</span>
+            <span id="heartbeat" class="value">--</span>
+        </div>
+
+        <div class="status-item">
+            <span class="label">RF Frame Rate:</span>
+            <span id="rf-rate" class="value">--</span>
+        </div>
+
+        <div class="status-item">
+            <span class="label">ESP32 Status:</span>
+            <span id="esp32-status" class="value">--</span>
+        </div>
+
+        <div class="status-item">
+            <span class="label">Alfa RTL88xx:</span>
+            <span id="alfa-status" class="value">--</span>
+        </div>
+
+        <div class="status-item">
+            <span class="label">CPU Load:</span>
+            <span id="cpu-load" class="value">--</span>
+        </div>
+
+        <div class="status-item">
+            <span class="label">Memory:</span>
+            <span id="memory" class="value">--</span>
+        </div>
+
+    </section>
+
+    <!-- BOTTOM: TELEMETRY LOG -->
+    <section class="panel telemetry-panel">
+        <h2>Telemetry Log</h2>
+        <div id="telemetry-log"></div>
+    </section>
+
+</div>
+
+<script src="/static/js/dashboard.js"></script>
+</body>
+</html>

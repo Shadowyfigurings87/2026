@@ -3,6 +3,8 @@
 from fastapi import FastAPI
 from host.api import telemetry, rf, arduino, health, system
 from prometheus_client import make_asgi_app
+from . import dashboard
+router.include_router(dashboard.router)
 
 def create_api():
     app = FastAPI(title="Rover1 Host API", version="1.0.0")
