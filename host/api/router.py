@@ -1,10 +1,7 @@
-# api/router.py
-
 from fastapi import FastAPI
 from host.api import telemetry, rf, arduino, health, system
 from prometheus_client import make_asgi_app
 from . import dashboard
-router.include_router(dashboard.router)
 
 def create_api():
     app = FastAPI(title="Rover1 Host API", version="1.0.0")
@@ -15,6 +12,7 @@ def create_api():
     app.include_router(arduino.router, prefix="/arduino", tags=["arduino"])
     app.include_router(health.router, prefix="/health", tags=["health"])
     app.include_router(system.router, prefix="/system", tags=["system"])
+    app.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 
     # Mount Prometheus metrics
     metrics_app = make_asgi_app()
@@ -22,5 +20,4 @@ def create_api():
 
     return app
 
-# Create the API instance
 app = create_api()
