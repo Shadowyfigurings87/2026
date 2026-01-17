@@ -1,22 +1,27 @@
 from host.logs.logging import info, warn, error
 
-def log_rf(event, **fields):
-    info(event, ministry="rf", **fields)
+def _log(ministry, event, fields):
+    # Remove ministry if already present to avoid duplicate keyword errors
+    fields.pop("ministry", None)
+    info(event, ministry=ministry, **fields)
 
 def log_ingest(event, **fields):
-    info(event, ministry="ingestion", **fields)
+    _log("ingestion", event, fields)
 
-def log_camera(event, **fields):
-    info(event, ministry="camera", **fields)
+def log_rf(event, **fields):
+    _log("rf", event, fields)
 
 def log_arduino(event, **fields):
-    info(event, ministry="arduino", **fields)
+    _log("arduino", event, fields)
 
-def log_db(event, **fields):
-    info(event, ministry="db", **fields)
+def log_esp32(event, **fields):
+    _log("esp32", event, fields)
+
+def log_camera(event, **fields):
+    _log("camera", event, fields)
 
 def log_watchdog(event, **fields):
-    info(event, ministry="watchdog", **fields)
+    _log("watchdog", event, fields)
 
-def log_api(event, **fields):
-    info(event, ministry="api", **fields)
+def log_system(event, **fields):
+    _log("system", event, fields)

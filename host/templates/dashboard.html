@@ -10,9 +10,9 @@
 
 <div id="layout">
 
-    <!-- LEFT COLUMN: CAMERA -->
+    <!-- LEFT COLUMN: STATIC CAMERA FRAME -->
     <section class="panel camera-panel">
-        <h2>Live Camera Feed</h2>
+        <h2>Latest Camera Frame</h2>
         <img id="camera-feed" src="/camera/latest" alt="Camera Feed">
     </section>
 
@@ -49,13 +49,55 @@
             <span class="label">Memory:</span>
             <span id="memory" class="value">--</span>
         </div>
-
     </section>
 
-    <!-- BOTTOM: TELEMETRY LOG -->
+    <!-- TELEMETRY LOG -->
     <section class="panel telemetry-panel">
         <h2>Telemetry Log</h2>
         <div id="telemetry-log"></div>
+    </section>
+    <section class="panel control-panel">
+        <h2>Rover Control</h2>
+        
+        <section class="panel drive-mode-panel">
+            <h2>Drive Mode</h2>
+
+            <div class="drive-mode-row">
+                <button id="mode-crawl" class="drive-mode-btn">Crawl</button>
+                <button id="mode-cruise" class="drive-mode-btn">Cruise</button>
+                <button id="mode-boost" class="drive-mode-btn">Boost</button>
+            </div>
+
+            <p class="hint">Boost requires holding SHIFT</p>
+        </section>
+
+        <div class="control-row">
+            <button id="btn-forward" class="control-btn">Forward</button>
+            <button id="btn-reverse" class="control-btn">Reverse</button>
+        </div>
+
+        <div class="control-row">
+            <button id="btn-dir-fwd" class="control-btn">Dir FWD</button>
+            <button id="btn-dir-rev" class="control-btn">Dir REV</button>
+        </div>
+
+        <div class="control-row">
+            <input id="throttle" type="range" min="0" max="255" value="0">
+        </div>
+
+        <div class="control-row">
+            <button id="btn-stop" class="control-btn stop-btn">STOP</button>
+        </div>
+
+        <p class="hint">
+            Keyboard: W/S = throttle, A/D = direction, SPACE = stop
+        </p>
+    </section>
+
+    <!-- LIVE MJPEG STREAM -->
+    <section class="panel camera-panel">
+        <h2>Live MJPEG Stream</h2>
+        <img id="mjpeg-stream" src="/camera/stream" alt="MJPEG Stream">
     </section>
 
 </div>

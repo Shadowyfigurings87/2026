@@ -41,3 +41,73 @@ body {
     font-family: monospace;
     font-size: 13px;
 }
+#mjpeg-stream {
+    width: 100%;
+    border-radius: 6px;
+    background: #000;
+}
+.control-panel {
+    text-align: center;
+}
+
+.control-row {
+    margin: 10px 0;
+}
+
+.control-btn {
+    padding: 10px 20px;
+    margin: 5px;
+    background: #333;
+    color: #eee;
+    border: 1px solid #555;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.control-btn:hover {
+    background: #444;
+}
+
+.stop-btn {
+    background: #660000;
+    border-color: #aa0000;
+}
+
+.stop-btn:hover {
+    background: #880000;
+}
+
+#throttle {
+    width: 90%;
+}
+
+.hint {
+    font-size: 12px;
+    opacity: 0.7;
+}
+.drive-mode-panel {
+    text-align: center;
+}
+
+.drive-mode-row {
+    margin: 10px 0;
+}
+
+.drive-mode-btn {
+    padding: 10px 20px;
+    margin: 5px;
+    background: #222;
+    color: #eee;
+    border: 1px solid #555;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.drive-mode-btn.active {
+    background: #0066cc;
+    border-color: #0099ff;
+}
+
+.drive-mode-btn:hover {
+    background: #333;
+}

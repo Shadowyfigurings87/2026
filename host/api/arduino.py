@@ -1,8 +1,9 @@
 # host/api/arduino.py
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
 from host.logs.wrappers import log_arduino
 from host.services import db_reader
+from host.services.command_router import send_arduino_command
 
 router = APIRouter()
 
@@ -50,3 +51,24 @@ def get_recent_arduino():
     except Exception as e:
         log_arduino("arduino_recent_error", error=str(e))
         raise HTTPException(status_code=500, detail="Error retrieving recent telemetry")
+
+
+# ---------------------------------------------------------
+# COMMAND ENDPOINT (NEW — REQUIRED FOR CONTROL PANEL)
+# ---------------------------------------------------------
+
+@router.post("/command")
+def send_command(cmd: str = Body(..., embed=True)):
+    """
+    Sends a raw command string to the Arduino over serial.
+    Used by the Rover Control Panel (keyboard + mouse control).
+    """
+    try:
+        log_arduino("arduino_command_received", cmd=cmd)
+        send_arduino_command(cmd)
+        log_arduino("arduino_command_sent", cmd=cmd)
+        return {"status": "ok", "sent": cmd}
+
+    except Exception as e:
+        log_arduino("arduino_command_error", cmd=cmd, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to send Arduino command")

@@ -1,12 +1,12 @@
-# host/api/rf.py
-
 from fastapi import APIRouter
-from host.logs.wrappers import log_rf
+from host.services.metrics import get_rf_status, get_alfa_status
 
 router = APIRouter()
 
-@router.get("/recent")
-def get_recent_rf():
-    # Example if you ever want to log:
-    # log_rf("rf_recent_requested")
-    return {"status": "ok", "message": "rf endpoint online"}
+@router.get("/status")
+async def rf_status():
+    return get_rf_status()
+
+@router.get("/alfa")
+async def alfa_status():
+    return get_alfa_status()

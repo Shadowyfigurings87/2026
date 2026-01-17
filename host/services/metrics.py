@@ -64,3 +64,40 @@ rf_frame_processing_seconds = Histogram(
     "Time spent processing an RF frame in seconds",
     buckets=[0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
 )
+
+# -------- Helper functions for API layer --------
+
+from prometheus_client import REGISTRY
+
+def _get_metric_value(name: str):
+    """Safely fetch a Prometheus metric value by name."""
+    try:
+        value = REGISTRY.get_sample_value(name)
+        return value if value is not None else 0.0
+    except Exception:
+        return 0.0
+
+
+def get_rf_status():
+    """Return RF telemetry for the dashboard."""
+    return {
+        "frame_rate_hz": _get_metric_value("rover_rf_frame_rate_hz"),
+        "total_frames": _get_metric_value("rover_rf_frames_total"),
+    }
+
+
+def get_alfa_status():
+    """Placeholder RTL88xx/Alfa adapter status."""
+    # You can expand this later when you add real RTL88xx metrics
+    return {
+        "status": "unknown",
+        "devices": 0
+    }
+
+
+def get_esp32_status():
+    """Return ESP32 queue pressure or status if you add metrics later."""
+    return {
+        "status": "idle",
+        "queue_pressure": _get_metric_value("rover_watchdog_age_seconds")  # placeholder
+    }
