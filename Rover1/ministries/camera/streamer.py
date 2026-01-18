@@ -1,85 +1,46 @@
-import socket
-import threading
-import time
 import io
+import time
 from picamera2 import Picamera2
 
 
-class MJPEGStreamer:
+class CameraBackend:
     """
-    Sends MJPEG frames directly to the host ingestion server.
-    This ministry is independent from the JSON uplink.
+    Backend-only camera ministry.
+    Produces JPEG frames for the unified uplink.
+    Does NOT open sockets or send data.
     """
 
-    def __init__(self, host, port, fps=10):
-        self.host = host
-        self.port = port
+    def __init__(self, fps=10, size=(640, 480)):
         self.fps = fps
         self.frame_delay = 1.0 / fps
 
-        self.running = False
-        self.thread = None
-
-        # Initialize camera
         self.picam = Picamera2()
-        config = self.picam.create_video_configuration(main={"size": (640, 480)})
+        config = self.picam.create_video_configuration(
+            main={"size": size}
+        )
         self.picam.configure(config)
         self.picam.start()
 
-    def start(self):
-        if self.running:
-            return
-        self.running = True
-        self.thread = threading.Thread(target=self._loop, daemon=True)
-        self.thread.start()
-
-    def stop(self):
-        self.running = False
-        if self.thread:
-            self.thread.join()
-
-    def _loop(self):
+    def frames(self):
         """
-        Persistent connection loop.
-        Reconnects automatically if the host drops the connection.
+        Generator that yields:
+        {
+            "ministry": "picamera2",
+            "format": "jpeg",
+            "ts": <timestamp>,
+            "data": <bytes>
+        }
         """
-        while self.running:
-            sock = None
-            conn = None
+        while True:
+            buf = io.BytesIO()
+            self.picam.capture_file(buf, format="jpeg")
+            jpeg = buf.getvalue()
 
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect((self.host, self.port))
-                conn = sock.makefile("wb")
+            yield {
+                "ministry": "picamera2",
+                "format": "jpeg",
+                "ts": time.time(),
+                "data": jpeg,
+            }
 
-                while self.running:
-                    # Capture JPEG
-                    buf = io.BytesIO()
-                    self.picam.capture_file(buf, format="jpeg")
-                    jpeg = buf.getvalue()
-                    length = str(len(jpeg)).encode()
-
-                    # MJPEG frame
-                    conn.write(b"--frame\r\n")
-                    conn.write(b"Content-Type: image/jpeg\r\n")
-                    conn.write(b"Content-Length: " + length + b"\r\n\r\n")
-                    conn.write(jpeg)
-                    conn.write(b"\r\n")
-                    conn.flush()
-
-                    time.sleep(self.frame_delay)
-
-            except Exception:
-                time.sleep(1)
-
-            finally:
-                try:
-                    if conn:
-                        conn.close()
-                except:
-                    pass
-                try:
-                    if sock:
-                        sock.close()
-                except:
-                    pass
+            time.sleep(self.frame_delay)

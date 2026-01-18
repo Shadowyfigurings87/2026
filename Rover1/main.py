@@ -1,37 +1,38 @@
+# /home/zachariah/2026/Rover1/main.py
+
 from arduino import start_arduino_threads, find_working_serial_port
 from redrover_link.tcp_server import start_redrover_server
-from ingest_unified import merged_stream
-from ministries.network.uplink_ngrok import send_telemetry_and_receive_commands
-from ministries.camera.streamer import MJPEGStreamer
+from ministries.network.uplink import send_unified_uplink
 
 
 def main():
     print("Rover1 main.py starting…")
-
-    # Start MJPEG video streamer (video uplink)
-    video = MJPEGStreamer(
-        host="0.tcp.ngrok.io",
-        port=12702,
-        fps=10
-    )
-    video.start()
 
     # Auto-detect Arduino serial port
     port = find_working_serial_port()
     if port is None:
         raise RuntimeError("No working serial port found for Arduino")
 
-    # Start Arduino reader/writer
+    print(f"Arduino detected on {port}, starting threads…")
     start_arduino_threads(port=port, baud=115200)
 
-    # Start RedRover link server
+    # Start RedRover link server (local TCP server for rover control)
+    print("Starting RedRover TCP server on port 9000…")
     start_redrover_server(host="0.0.0.0", port=9000)
 
-    # JSON telemetry uplink
-    send_telemetry_and_receive_commands(
-        generator_factory=merged_stream,
-        host="0.tcp.ngrok.io",
-        port=11092,
+    # Unified uplink (telemetry + camera + commands)
+    # Connect to ngrok TCP tunnel
+    HOST = "0.tcp.ngrok.io"   # <-- correct ngrok hostname
+    PORT = 11092              # <-- your ngrok TCP port
+
+    print(f"Starting unified uplink to {HOST}:{PORT}…")
+    send_unified_uplink(
+        host=HOST,
+        port=PORT,
+        reconnect_delay=5,
+        heartbeat_interval=5,
+        camera_fps=10,
+        camera_weight=5,
     )
 
 
