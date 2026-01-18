@@ -1,3 +1,5 @@
+# Rover1/ministries/network/uplink.py
+
 import threading
 import time
 
@@ -59,12 +61,12 @@ def send_unified_uplink(
             # Connect (with retry)
             sock = connect_with_retry(host, port, reconnect_delay=reconnect_delay)
 
-            # Handshake
+            # Handshake (now using ministry="system")
             hs = handshake_packet()
             print("[Uplink → Host]", hs.strip())
             sock.sendall(hs.encode("utf-8"))
 
-            # Command listener
+            # Command listener thread
             listener = threading.Thread(
                 target=_command_listener,
                 args=(sock,),
@@ -77,6 +79,7 @@ def send_unified_uplink(
             dropped_frames = 0
             video_paused_until = 0
 
+            # Unified stream: telemetry + camera
             gen = unified_stream_with_camera(
                 camera_fps=camera_fps,
                 camera_weight=camera_weight,
@@ -116,6 +119,7 @@ def send_unified_uplink(
                                 video_paused_until = now + 1
                                 dropped_frames = 0
                             continue
+
                         print("[Uplink] Telemetry send blocked — reconnecting")
                         break
 

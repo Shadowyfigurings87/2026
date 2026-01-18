@@ -11,8 +11,9 @@ def now_iso():
 
 
 def handshake_packet():
+    # Host expects "system" for handshake packets
     return encode_jsonl({
-        "ministry": "uplink",
+        "ministry": "system",
         "event": "handshake",
         "ts": time.time(),
         "timestamp": now_iso(),
@@ -20,8 +21,9 @@ def handshake_packet():
 
 
 def heartbeat_packet():
+    # Heartbeat also belongs to the "system" ministry
     return encode_jsonl({
-        "ministry": "uplink",
+        "ministry": "system",
         "event": "heartbeat",
         "ts": time.time(),
         "timestamp": now_iso(),
