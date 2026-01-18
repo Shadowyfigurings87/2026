@@ -1,5 +1,17 @@
-import json
+# Rover1/ministries/network/streams.py
+#
+# Unified stream layer for Rover1.
+# Merges:
+#   - Arduino telemetry
+#   - RedRover commands (as telemetry events)
+#   - Heartbeat
+#   - Watchdog
+#   - Camera frames (Picamera2)
+#
+# This module is consumed by ministries.network.uplink.send_unified_uplink().
+
 import time
+import json
 from collections import deque
 from datetime import datetime
 
@@ -7,12 +19,23 @@ from redrover_link.tcp_server import redrover_queue
 from arduino import arduino_stream
 from ministries.health.heartbeat import heartbeat_stream
 from ministries.health.watchdog import watchdog_stream
-from ministries.camera.streamer import CameraBackend
+from ministries.camera.streamer import camera_frame_generator
 
 
+# ---------------------------------------------------------
+# Utility: ISO8601 timestamp
+# ---------------------------------------------------------
+def now_iso():
+    return datetime.utcnow().isoformat() + "Z"
+
+
+# ---------------------------------------------------------
+# RedRover stream (queue consumer)
+# ---------------------------------------------------------
 def redrover_stream():
+    """Yield JSON objects from the RedRover queue."""
     while True:
-        line = redrover_queue.get()
+        line = redrover_queue.get()  # blocks until data arrives
         try:
             obj = json.loads(line)
             yield obj
@@ -20,13 +43,25 @@ def redrover_stream():
             continue
 
 
+# ---------------------------------------------------------
+# Ministry tag injection
+# ---------------------------------------------------------
 def ensure_ministry(obj, default_ministry):
+    """Ensure every object has a 'ministry' tag."""
     if "ministry" not in obj or obj["ministry"] is None:
         obj["ministry"] = default_ministry
     return obj
 
 
+# ---------------------------------------------------------
+# Jitter smoothing (timestamp smoothing)
+# ---------------------------------------------------------
 class JitterSmoother:
+    """
+    Simple jitter smoother for timestamps.
+    Keeps a small window of recent deltas and smooths spikes.
+    """
+
     def __init__(self, window_size=10, max_spike_factor=3.0):
         self.window = deque(maxlen=window_size)
         self.last_ts = None
@@ -54,35 +89,24 @@ class JitterSmoother:
         return ts
 
 
-def log_health(event_type, data):
-    try:
-        entry = {
-            "ts": time.time(),
-            "kind": "health",
-            "event": event_type,
-            "data": data,
-        }
-        line = json.dumps(entry, separators=(",", ":")) + "\n"
-        with open("rover1_health.log", "a") as f:
-            f.write(line)
-    except Exception:
-        pass
-
-
+# ---------------------------------------------------------
+# Unified telemetry-only stream (no camera)
+# ---------------------------------------------------------
 def merged_stream():
     """
-    Your existing unified telemetry stream:
-    - arduino
-    - redrover
-    - heartbeat
-    - watchdog
+    Merge multiple telemetry sources into one unified stream with:
+      - Ministry tag injection
+      - Priority scheduling (weights)
+      - Jitter smoothing on timestamps
+      - ISO8601 timestamp injection
     """
 
+    # Startup packet
     yield {
         "ministry": "system",
         "event": "startup",
         "ts": time.time(),
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": now_iso(),
     }
 
     arduino_gen = arduino_stream()
@@ -104,13 +128,8 @@ def merged_stream():
         "watchdog": 1,
     }
 
-    high_pressure_threshold = 500
-    critical_pressure_threshold = 1000
-    last_pressure_log = 0
-    pressure_log_interval = 5
-
     while True:
-        # Arduino
+        # 1. Arduino
         for _ in range(weights["arduino"]):
             try:
                 obj = next(arduino_gen)
@@ -118,13 +137,12 @@ def merged_stream():
 
                 ts = obj.get("ts", time.time())
                 obj["ts"] = smoothers["arduino"].smooth(ts)
-
-                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
+                obj["timestamp"] = now_iso()
                 yield obj
             except Exception:
                 break
 
-        # RedRover
+        # 2. RedRover
         for _ in range(weights["redrover"]):
             try:
                 obj = next(redrover_gen)
@@ -132,27 +150,12 @@ def merged_stream():
 
                 ts = obj.get("ts", time.time())
                 obj["ts"] = smoothers["redrover"].smooth(ts)
-
-                try:
-                    qsize = redrover_queue.qsize()
-                    obj["_queue_pressure"] = qsize
-                except Exception:
-                    obj["_queue_pressure"] = None
-
-                now = time.time()
-                if obj.get("_queue_pressure") is not None and now - last_pressure_log > pressure_log_interval:
-                    if qsize > critical_pressure_threshold:
-                        log_health("redrover_queue_critical", {"qsize": qsize})
-                    elif qsize > high_pressure_threshold:
-                        log_health("redrover_queue_high", {"qsize": qsize})
-                    last_pressure_log = now
-
-                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
+                obj["timestamp"] = now_iso()
                 yield obj
             except Exception:
                 break
 
-        # Heartbeat
+        # 3. Heartbeat
         for _ in range(weights["heartbeat"]):
             try:
                 obj = next(hb_gen)
@@ -160,13 +163,12 @@ def merged_stream():
 
                 ts = obj.get("ts", time.time())
                 obj["ts"] = smoothers["heartbeat"].smooth(ts)
-
-                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
+                obj["timestamp"] = now_iso()
                 yield obj
             except Exception:
                 break
 
-        # Watchdog
+        # 4. Watchdog
         for _ in range(weights["watchdog"]):
             try:
                 obj = next(wd_gen)
@@ -174,8 +176,7 @@ def merged_stream():
 
                 ts = obj.get("ts", time.time())
                 obj["ts"] = smoothers["watchdog"].smooth(ts)
-
-                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
+                obj["timestamp"] = now_iso()
                 yield obj
             except Exception:
                 break
@@ -183,25 +184,38 @@ def merged_stream():
         time.sleep(0.001)
 
 
-def unified_stream_with_camera(camera_fps=10, camera_weight=1):
+# ---------------------------------------------------------
+# Unified stream with camera
+# ---------------------------------------------------------
+def unified_stream_with_camera(camera_fps=10, camera_weight=5):
     """
-    Wraps merged_stream() and camera frames into a single generator
-    for the unified uplink.
+    Unified stream that merges:
+      - Telemetry from merged_stream()
+      - Camera frames from CameraBackend (Picamera2)
+
+    camera_weight controls how often camera frames are interleaved
+    relative to telemetry.
     """
+
     telem_gen = merged_stream()
-    cam_backend = CameraBackend(fps=camera_fps)
-    cam_gen = cam_backend.frames()
+    cam_gen = camera_frame_generator(camera_fps=camera_fps)
 
     counter = 0
 
-    while True:
+    for telem in telem_gen:
         # Always yield telemetry
-        obj = next(telem_gen)
-        yield obj
+        yield telem
 
-        # Periodically yield camera frames
         counter += 1
+
+        # Interleave camera frames based on weight
         if counter >= camera_weight:
             counter = 0
-            frame = next(cam_gen)
-            yield frame
+            try:
+                frame = next(cam_gen)
+                # frame already has ministry="picamera2", ts, data
+                yield frame
+            except Exception as e:
+                print(f"[UnifiedStream] Camera error: {e}")
+                # If camera fails, continue telemetry only
+                continue
