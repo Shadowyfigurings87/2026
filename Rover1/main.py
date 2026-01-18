@@ -23,7 +23,7 @@ def main():
     # Unified uplink (telemetry + camera + commands)
     # Connect to ngrok TCP tunnel
     HOST = "0.tcp.ngrok.io"   # <-- correct ngrok hostname
-    PORT = 11092              # <-- your ngrok TCP port
+    PORT = 12702              # <-- your ngrok TCP port
 
     print(f"Starting unified uplink to {HOST}:{PORT}…")
     send_unified_uplink(
