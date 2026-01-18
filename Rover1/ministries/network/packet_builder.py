@@ -1,4 +1,10 @@
 # Rover1/ministries/network/packet_builder.py
+#
+# JSONL packet builders for uplink:
+# - handshake (system)
+# - heartbeat (system)
+# - telemetry (merged ministries)
+# - camera (picamera2)
 
 import base64
 import time
@@ -11,7 +17,6 @@ def now_iso():
 
 
 def handshake_packet():
-    # Host expects "system" for handshake packets
     return encode_jsonl({
         "ministry": "system",
         "event": "handshake",
@@ -21,7 +26,6 @@ def handshake_packet():
 
 
 def heartbeat_packet():
-    # Heartbeat also belongs to the "system" ministry
     return encode_jsonl({
         "ministry": "system",
         "event": "heartbeat",

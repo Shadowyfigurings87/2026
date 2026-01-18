@@ -1,14 +1,11 @@
 # Rover1/ministries/network/streams.py
 #
-# Unified stream layer for Rover1.
-# Merges:
-#   - Arduino telemetry
-#   - RedRover commands (as telemetry events)
-#   - Heartbeat
-#   - Watchdog
-#   - Camera frames (Picamera2)
-#
-# This module is consumed by ministries.network.uplink.send_unified_uplink().
+# Hardened unified stream layer.
+# - Telemetry always flows
+# - Camera frames interleaved when available
+# - If camera fails once, disable permanently
+# - No repeated init attempts
+# - No unified stream crashes
 
 import time
 import json
@@ -19,49 +16,28 @@ from redrover_link.tcp_server import redrover_queue
 from arduino import arduino_stream
 from ministries.health.heartbeat import heartbeat_stream
 from ministries.health.watchdog import watchdog_stream
-from ministries.camera.streamer import camera_frame_generator
 
 
-# ---------------------------------------------------------
-# Utility: ISO8601 timestamp
-# ---------------------------------------------------------
 def now_iso():
     return datetime.utcnow().isoformat() + "Z"
 
 
-# ---------------------------------------------------------
-# RedRover stream (queue consumer)
-# ---------------------------------------------------------
 def redrover_stream():
-    """Yield JSON objects from the RedRover queue."""
     while True:
-        line = redrover_queue.get()  # blocks until data arrives
+        line = redrover_queue.get()
         try:
-            obj = json.loads(line)
-            yield obj
+            yield json.loads(line)
         except Exception:
             continue
 
 
-# ---------------------------------------------------------
-# Ministry tag injection
-# ---------------------------------------------------------
-def ensure_ministry(obj, default_ministry):
-    """Ensure every object has a 'ministry' tag."""
+def ensure_ministry(obj, default):
     if "ministry" not in obj or obj["ministry"] is None:
-        obj["ministry"] = default_ministry
+        obj["ministry"] = default
     return obj
 
 
-# ---------------------------------------------------------
-# Jitter smoothing (timestamp smoothing)
-# ---------------------------------------------------------
 class JitterSmoother:
-    """
-    Simple jitter smoother for timestamps.
-    Keeps a small window of recent deltas and smooths spikes.
-    """
-
     def __init__(self, window_size=10, max_spike_factor=3.0):
         self.window = deque(maxlen=window_size)
         self.last_ts = None
@@ -79,9 +55,9 @@ class JitterSmoother:
             return ts
 
         if self.window:
-            avg_delta = sum(self.window) / len(self.window)
-            if delta > avg_delta * self.max_spike_factor:
-                delta = avg_delta
+            avg = sum(self.window) / len(self.window)
+            if delta > avg * self.max_spike_factor:
+                delta = avg
                 ts = self.last_ts + delta
 
         self.window.append(delta)
@@ -89,19 +65,7 @@ class JitterSmoother:
         return ts
 
 
-# ---------------------------------------------------------
-# Unified telemetry-only stream (no camera)
-# ---------------------------------------------------------
 def merged_stream():
-    """
-    Merge multiple telemetry sources into one unified stream with:
-      - Ministry tag injection
-      - Priority scheduling (weights)
-      - Jitter smoothing on timestamps
-      - ISO8601 timestamp injection
-    """
-
-    # Startup packet
     yield {
         "ministry": "system",
         "event": "startup",
@@ -114,7 +78,7 @@ def merged_stream():
     hb_gen = heartbeat_stream(interval=5)
     wd_gen = watchdog_stream(check_interval=3)
 
-    smoothers = {
+    smooth = {
         "arduino": JitterSmoother(),
         "redrover": JitterSmoother(),
         "heartbeat": JitterSmoother(),
@@ -129,53 +93,41 @@ def merged_stream():
     }
 
     while True:
-        # 1. Arduino
+        # Arduino
         for _ in range(weights["arduino"]):
             try:
-                obj = next(arduino_gen)
-                obj = ensure_ministry(obj, "arduino")
-
-                ts = obj.get("ts", time.time())
-                obj["ts"] = smoothers["arduino"].smooth(ts)
+                obj = ensure_ministry(next(arduino_gen), "arduino")
+                obj["ts"] = smooth["arduino"].smooth(obj.get("ts", time.time()))
                 obj["timestamp"] = now_iso()
                 yield obj
             except Exception:
                 break
 
-        # 2. RedRover
+        # RedRover
         for _ in range(weights["redrover"]):
             try:
-                obj = next(redrover_gen)
-                obj = ensure_ministry(obj, "redrover")
-
-                ts = obj.get("ts", time.time())
-                obj["ts"] = smoothers["redrover"].smooth(ts)
+                obj = ensure_ministry(next(redrover_gen), "redrover")
+                obj["ts"] = smooth["redrover"].smooth(obj.get("ts", time.time()))
                 obj["timestamp"] = now_iso()
                 yield obj
             except Exception:
                 break
 
-        # 3. Heartbeat
+        # Heartbeat
         for _ in range(weights["heartbeat"]):
             try:
-                obj = next(hb_gen)
-                obj = ensure_ministry(obj, "heartbeat")
-
-                ts = obj.get("ts", time.time())
-                obj["ts"] = smoothers["heartbeat"].smooth(ts)
+                obj = ensure_ministry(next(hb_gen), "heartbeat")
+                obj["ts"] = smooth["heartbeat"].smooth(obj.get("ts", time.time()))
                 obj["timestamp"] = now_iso()
                 yield obj
             except Exception:
                 break
 
-        # 4. Watchdog
+        # Watchdog
         for _ in range(weights["watchdog"]):
             try:
-                obj = next(wd_gen)
-                obj = ensure_ministry(obj, "watchdog")
-
-                ts = obj.get("ts", time.time())
-                obj["ts"] = smoothers["watchdog"].smooth(ts)
+                obj = ensure_ministry(next(wd_gen), "watchdog")
+                obj["ts"] = smooth["watchdog"].smooth(obj.get("ts", time.time()))
                 obj["timestamp"] = now_iso()
                 yield obj
             except Exception:
@@ -184,38 +136,38 @@ def merged_stream():
         time.sleep(0.001)
 
 
-# ---------------------------------------------------------
-# Unified stream with camera
-# ---------------------------------------------------------
 def unified_stream_with_camera(camera_fps=10, camera_weight=5):
-    """
-    Unified stream that merges:
-      - Telemetry from merged_stream()
-      - Camera frames from CameraBackend (Picamera2)
-
-    camera_weight controls how often camera frames are interleaved
-    relative to telemetry.
-    """
-
     telem_gen = merged_stream()
-    cam_gen = camera_frame_generator(camera_fps=camera_fps)
+
+    # Try to initialize camera generator
+    camera_enabled = True
+    cam_gen = None
+
+    try:
+        from ministries.camera.streamer import camera_frame_generator
+        cam_gen = camera_frame_generator(camera_fps=camera_fps)
+    except Exception as e:
+        print(f"[UnifiedStream] Camera generator init failed: {e}")
+        camera_enabled = False
 
     counter = 0
 
     for telem in telem_gen:
-        # Always yield telemetry
         yield telem
+
+        if not camera_enabled:
+            continue
 
         counter += 1
 
-        # Interleave camera frames based on weight
         if counter >= camera_weight:
             counter = 0
             try:
                 frame = next(cam_gen)
-                # frame already has ministry="picamera2", ts, data
                 yield frame
+            except StopIteration:
+                print("[UnifiedStream] Camera generator exhausted, disabling camera")
+                camera_enabled = False
             except Exception as e:
-                print(f"[UnifiedStream] Camera error: {e}")
-                # If camera fails, continue telemetry only
-                continue
+                print(f"[UnifiedStream] Camera error, disabling camera: {e}")
+                camera_enabled = False
