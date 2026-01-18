@@ -1,4 +1,14 @@
 // ------------------------------
+// Initialize MJPEG Stream (cache‑buster)
+// ------------------------------
+document.addEventListener("DOMContentLoaded", () => {
+    const mjpeg = document.getElementById("mjpeg-stream");
+    if (mjpeg) {
+        mjpeg.src = "/camera/stream?cache=" + Date.now();
+    }
+});
+
+// ------------------------------
 // Utility: Safe JSON fetch
 // ------------------------------
 async function fetchJSON(url) {
@@ -109,59 +119,79 @@ function updateLatestFrame() {
     img.src = `/camera/latest?ts=${Date.now()}`;
 }
 
-// ------------------------------
-// Arduino Command Sender
-// ------------------------------
-async function sendCommand(cmd) {
-    try {
-        await fetch("/arduino/command", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cmd })
-        });
-    } catch (err) {
-        // Silent fail for now; could add UI error later
-    }
+// ======================================================
+// 🚀 NEW JSON COMMAND API (FINAL VERSION)
+// ======================================================
+
+function sendThrottle(value) {
+    fetch('/command/throttle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: parseFloat(value) })
+    });
 }
 
-// ------------------------------
-// Button Controls
-// ------------------------------
+function sendDirection(dir) {
+    fetch('/command/direction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction: dir })
+    });
+}
+
+function sendStop() {
+    fetch('/command/stop', { method: 'POST' });
+}
+
+function sendCustom() {
+    const payload = JSON.parse(document.getElementById('custom-json').value);
+    fetch('/command/custom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload })
+    });
+}
+
+// ======================================================
+// 🚀 BUTTON CONTROLS (NOW USING JSON COMMAND API)
+// ======================================================
+
 const throttleSlider = document.getElementById("throttle");
 
 document.getElementById("btn-forward").onclick = () => {
     const speed = throttleSlider.value;
-    sendCommand(`ACT:FWD:${speed}`);
+    sendThrottle(speed);
+    sendDirection("fwd");
 };
 
 document.getElementById("btn-reverse").onclick = () => {
     const speed = throttleSlider.value;
-    sendCommand(`ACT:REV:${speed}`);
+    sendThrottle(speed);
+    sendDirection("rev");
 };
 
 document.getElementById("btn-dir-fwd").onclick = () => {
-    sendCommand("DIR:FWD");
+    sendDirection("fwd");
 };
 
 document.getElementById("btn-dir-rev").onclick = () => {
-    sendCommand("DIR:REV");
+    sendDirection("rev");
 };
 
 document.getElementById("btn-stop").onclick = () => {
-    sendCommand("ACT:STOP");
+    sendStop();
 };
 
-// ------------------------------
-// Throttle Slider (PWM direct)
-// ------------------------------
+// Throttle slider (JSON)
 throttleSlider.oninput = (e) => {
     const speed = e.target.value;
-    sendCommand(`PWM:${speed}`);
+    sendThrottle(speed);
 };
 
-// ------------------------------
-// Drive Mode System
-// ------------------------------
+// ======================================================
+// 🚀 DRIVE MODE SYSTEM
+// ======================================================
+
 let driveMode = "cruise";  // default
 
 const driveModes = {
@@ -188,12 +218,12 @@ if (btnCrawl)  btnCrawl.onclick  = () => setDriveMode("crawl");
 if (btnCruise) btnCruise.onclick = () => setDriveMode("cruise");
 if (btnBoost)  btnBoost.onclick  = () => setDriveMode("boost");
 
-// Initialize default mode highlight
 setDriveMode("cruise");
 
-// ------------------------------
-// Keyboard Controls + Throttle Ramping
-// ------------------------------
+// ======================================================
+// 🚀 KEYBOARD CONTROLS (JSON COMMAND VERSION)
+// ======================================================
+
 let throttle = 0;
 let throttleInterval = null;
 window.shiftKeyDown = false;
@@ -204,16 +234,14 @@ function startThrottle(direction) {
     throttleInterval = setInterval(() => {
         const mode = driveModes[driveMode];
 
-        // Boost requires SHIFT held
         if (driveMode === "boost" && !window.shiftKeyDown) return;
 
         throttle = Math.min(mode.max, throttle + mode.accel);
         throttleSlider.value = throttle;
 
-        if (direction === "fwd")
-            sendCommand(`ACT:FWD:${throttle}`);
-        else
-            sendCommand(`ACT:REV:${throttle}`);
+        sendThrottle(throttle);
+        sendDirection(direction);
+
     }, 100);
 }
 
@@ -222,7 +250,7 @@ function stopThrottle() {
     throttleInterval = null;
     throttle = 0;
     throttleSlider.value = 0;
-    sendCommand("ACT:STOP");
+    sendStop();
 }
 
 document.addEventListener("keydown", (e) => {
@@ -232,8 +260,8 @@ document.addEventListener("keydown", (e) => {
 
     if (e.key === "w") startThrottle("fwd");
     if (e.key === "s") startThrottle("rev");
-    if (e.key === "a") sendCommand("DIR:REV");
-    if (e.key === "d") sendCommand("DIR:FWD");
+    if (e.key === "a") sendDirection("rev");
+    if (e.key === "d") sendDirection("fwd");
     if (e.key === " ") stopThrottle();
 });
 
@@ -242,9 +270,10 @@ document.addEventListener("keyup", (e) => {
     if (e.key === "w" || e.key === "s") stopThrottle();
 });
 
-// ------------------------------
-// Main Update Loop
-// ------------------------------
+// ======================================================
+// 🚀 MAIN UPDATE LOOP
+// ======================================================
+
 async function updateDashboard() {
     updateLatestFrame();
     updateHeartbeat();
@@ -255,8 +284,5 @@ async function updateDashboard() {
     updateTelemetry();
 }
 
-// Run once immediately
 updateDashboard();
-
-// Run every second
 setInterval(updateDashboard, 1000);

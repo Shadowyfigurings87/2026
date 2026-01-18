@@ -82,7 +82,7 @@ def _safe_send(sock, data, max_block_ms=50):
 def send_telemetry_and_receive_commands(
     generator_factory,
     host="0.tcp.ngrok.io",
-    port=11092,
+    port=12702,
     reconnect_delay=5,
     heartbeat_interval=5,
 ):

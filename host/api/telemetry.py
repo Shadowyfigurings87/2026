@@ -1,12 +1,43 @@
-from host.logs.logging import info
-from fastapi import APIRouter, Response
-from typing import List
+# host/api/telemetry.py
+
+from fastapi import APIRouter
+from typing import List, Optional
 from host.schemas import TelemetryRecord
 from host.services import db_reader
 
-router = APIRouter()
+router = APIRouter(prefix="/telemetry", tags=["telemetry"])
+
 
 @router.get("/recent", response_model=List[TelemetryRecord])
 def get_recent():
     return db_reader.get_recent_telemetry()
-# host/api/system.py (example)
+
+
+@router.get("/arduino/latest")
+def get_arduino_latest():
+    """
+    Returns the latest Arduino telemetry snapshot.
+    """
+    state = db_reader.get_arduino_state()
+    if not state:
+        return {"rpm": 0, "throttle": None, "direction": None}
+    return state
+
+
+@router.get("/arduino/rpm")
+def get_arduino_rpm():
+    """
+    Returns only the latest RPM value.
+    """
+    state = db_reader.get_arduino_state()
+    if not state:
+        return {"rpm": 0}
+    return {"rpm": state.get("rpm", 0)}
+
+
+@router.get("/arduino/state")
+def get_arduino_state():
+    """
+    Full Arduino state (RPM, throttle, direction, last command, timestamp).
+    """
+    return db_reader.get_arduino_state() or {}

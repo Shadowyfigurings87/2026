@@ -11,7 +11,7 @@ def main():
     # Start MJPEG video streamer (video uplink)
     video = MJPEGStreamer(
         host="0.tcp.ngrok.io",
-        port=11092,
+        port=12702,
         fps=10
     )
     video.start()

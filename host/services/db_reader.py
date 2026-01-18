@@ -1,41 +1,63 @@
-from host.logs.logging import info
-# services/db_reader.py
+# host/services/db_reader.py
 
 import sqlite3
+import json
 from typing import List, Optional, Any
 from datetime import datetime, timezone
 
 DB_PATH = "host.db"
 
+
 def _connect():
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+# ============================================================
+# RAW TELEMETRY
+# ============================================================
 
 def get_recent_telemetry(limit: int = 100) -> List[dict]:
     conn = _connect()
     cur = conn.cursor()
+
     cur.execute("""
         SELECT id, timestamp_utc, ts, ministry, payload
         FROM telemetry_raw
         ORDER BY id DESC
         LIMIT ?
     """, (limit,))
+
     rows = cur.fetchall()
     conn.close()
 
-    return [
-        {
-            "id": r[0],
-            "timestamp_utc": r[1],
-            "ts": r[2],
-            "ministry": r[3],
-            "payload": r[4],
-        }
-        for r in rows
-    ]
+    out = []
+    for r in rows:
+        try:
+            payload = json.loads(r["payload"])
+        except Exception:
+            payload = r["payload"]
+
+        out.append({
+            "id": r["id"],
+            "timestamp_utc": r["timestamp_utc"],
+            "ts": r["ts"],
+            "ministry": r["ministry"],
+            "payload": payload,
+        })
+
+    return out
+
+
+# ============================================================
+# RF TELEMETRY
+# ============================================================
 
 def get_recent_rf(limit: int = 100) -> List[dict]:
     conn = _connect()
     cur = conn.cursor()
+
     cur.execute("""
         SELECT id, timestamp_utc, payload
         FROM telemetry_raw
@@ -43,22 +65,34 @@ def get_recent_rf(limit: int = 100) -> List[dict]:
         ORDER BY id DESC
         LIMIT ?
     """, (limit,))
+
     rows = cur.fetchall()
     conn.close()
 
     out = []
     for r in rows:
-        payload = r[2]
+        try:
+            payload = json.loads(r["payload"])
+        except Exception:
+            payload = r["payload"]
+
         out.append({
-            "id": r[0],
-            "timestamp_utc": r[1],
+            "id": r["id"],
+            "timestamp_utc": r["timestamp_utc"],
             "payload": payload,
         })
+
     return out
+
+
+# ============================================================
+# ARDUINO (legacy fallback)
+# ============================================================
 
 def get_arduino_state() -> Optional[dict]:
     conn = _connect()
     cur = conn.cursor()
+
     cur.execute("""
         SELECT timestamp_utc, payload
         FROM telemetry_raw
@@ -66,22 +100,65 @@ def get_arduino_state() -> Optional[dict]:
         ORDER BY id DESC
         LIMIT 1
     """)
+
     row = cur.fetchone()
     conn.close()
 
     if not row:
         return None
 
+    try:
+        payload = json.loads(row["payload"])
+    except Exception:
+        payload = row["payload"]
+
     return {
-        "timestamp_utc": row[0],
-        "state": row[1],
+        "timestamp_utc": row["timestamp_utc"],
+        "state": payload,
     }
+
+
+# ============================================================
+# ESP32 (new ministry)
+# ============================================================
+
+def get_esp32_state() -> Optional[dict]:
+    conn = _connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT status, queue_pressure, ts, raw
+        FROM esp32_state
+        WHERE id = 1
+    """)
+
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    try:
+        raw = json.loads(row["raw"])
+    except Exception:
+        raw = row["raw"]
+
+    return {
+        "status": row["status"],
+        "queue_pressure": row["queue_pressure"],
+        "ts": row["ts"],
+        "raw": raw,
+    }
+
+
+# ============================================================
+# HEALTH SUMMARY
+# ============================================================
 
 def get_health_summary() -> dict:
     conn = _connect()
     cur = conn.cursor()
 
-    # heartbeat
     cur.execute("""
         SELECT timestamp_utc
         FROM telemetry_raw
@@ -91,7 +168,6 @@ def get_health_summary() -> dict:
     """)
     hb = cur.fetchone()
 
-    # watchdog
     cur.execute("""
         SELECT timestamp_utc
         FROM telemetry_raw
@@ -111,18 +187,22 @@ def get_health_summary() -> dict:
         try:
             dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
             return (now - dt).total_seconds()
-        except:
+        except Exception:
             return None
 
     return {
-        "heartbeat_age_sec": age(hb[0]) if hb else None,
-        "watchdog_age_sec": age(wd[0]) if wd else None,
-        "last_heartbeat": hb[0] if hb else None,
-        "last_watchdog": wd[0] if wd else None,
+        "heartbeat_age_sec": age(hb["timestamp_utc"]) if hb else None,
+        "watchdog_age_sec": age(wd["timestamp_utc"]) if wd else None,
+        "last_heartbeat": hb["timestamp_utc"] if hb else None,
+        "last_watchdog": wd["timestamp_utc"] if wd else None,
     }
 
+
+# ============================================================
+# SYSTEM STATS (placeholder)
+# ============================================================
+
 def get_system_stats() -> dict:
-    # Placeholder — will be replaced with real metrics later
     return {
         "ingest_rate": 0.0,
         "db_queue_depth": 0,

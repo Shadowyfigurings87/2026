@@ -78,3 +78,7 @@ def get_health_summary():
     )
 
     return summary
+    
+@router.get("")
+def health_root():
+    return {"status": "ok"}
