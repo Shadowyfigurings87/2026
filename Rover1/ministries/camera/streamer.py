@@ -1,13 +1,14 @@
 # Rover1/ministries/camera/streamer.py
 #
-# Hardened CameraBackend-only module.
-# - Lazy initialization (only on first frame)
-# - Warm-up delay
-# - One init attempt only
-# - Telemetry-only fallback
-# - No MJPEG, no sockets, no legacy code
+# Sovereign CameraBackend (final form)
+# - True singleton Picamera2 instance
+# - Thread-safe initialization
+# - No double-start, no race conditions
+# - Stable JPEG capture for unified uplink
 
 import time
+import threading
+import cv2
 
 try:
     from picamera2 import Picamera2
@@ -18,96 +19,91 @@ except Exception as e:
     PICAMERA_AVAILABLE = False
 
 
-class CameraBackend:
+# ------------------------------------------------------------
+# GLOBAL SINGLETON CAMERA INSTANCE
+# ------------------------------------------------------------
+_picam = None
+_init_lock = threading.Lock()
+
+
+def get_camera(resolution=(640, 480), quality=90):
     """
-    Minimal backend-only camera module.
-    Initializes Picamera2 lazily on first frame request.
-    If init fails once, camera is permanently disabled.
+    Returns the global Picamera2 instance.
+    Initializes it once, safely, on first call.
     """
+    global _picam
 
-    def __init__(self, resolution=(640, 480), quality=90):
-        self.resolution = resolution
-        self.quality = quality
-        self.picam = None
-        self.initialized = False
-        self.failed = False
+    if not PICAMERA_AVAILABLE:
+        raise RuntimeError("Picamera2 not available on this system")
 
-    def _ensure_init(self):
-        if self.failed:
-            raise RuntimeError("Camera init previously failed")
-
-        if self.initialized:
-            return
-
-        if not PICAMERA_AVAILABLE:
-            self.failed = True
-            raise RuntimeError("Picamera2 not available on this system")
+    with _init_lock:
+        if _picam is not None:
+            return _picam
 
         try:
-            # Warm-up delay for libcamera pipeline
-            time.sleep(1.0)
+            time.sleep(1.0)  # warm-up for libcamera pipeline
 
-            picam = Picamera2()
+            cam = Picamera2()
 
-            config = picam.create_still_configuration(
-                main={"size": self.resolution},
+            config = cam.create_still_configuration(
+                main={"size": resolution},
                 transform=Transform(vflip=0, hflip=0),
                 buffer_count=2,
             )
 
-            picam.configure(config)
-            picam.start()
+            cam.configure(config)
+            cam.start()
 
-            self.picam = picam
-            self.initialized = True
-            print("[CameraBackend] Picamera2 initialized")
+            _picam = cam
+            print("[CameraBackend] Picamera2 initialized (singleton)")
+
+            return _picam
 
         except Exception as e:
-            self.failed = True
-            print(f"[CameraBackend] Camera init sequence did not complete: {e}")
-            raise RuntimeError("Camera init sequence did not complete") from e
-
-    def get_frame(self):
-        """
-        Capture a JPEG frame and return:
-        {
-            "ministry": "picamera2",
-            "format": "jpeg",
-            "ts": <float>,
-            "data": <bytes>
-        }
-        """
-        self._ensure_init()
-
-        ts = time.time()
-        jpeg_bytes = self.picam.capture_buffer(
-            "main",
-            format="jpeg",
-            quality=self.quality,
-        )
-
-        return {
-            "ministry": "picamera2",
-            "format": "jpeg",
-            "ts": ts,
-            "data": jpeg_bytes,
-        }
+            print(f"[CameraBackend] Camera init failed: {e}")
+            raise RuntimeError("Camera init failed") from e
 
 
-def camera_frame_generator(camera_fps=10):
+# ------------------------------------------------------------
+# FRAME GENERATOR
+# ------------------------------------------------------------
+def camera_frame_generator(camera_fps=10, resolution=(640, 480), quality=90):
     """
-    Generator that yields JPEG frames at a controlled FPS.
-    If camera init fails, generator stops permanently.
+    Yields JPEG frames at a controlled FPS.
+    Uses the global singleton camera instance.
     """
-    backend = CameraBackend()
     delay = 1.0 / max(camera_fps, 1)
+
+    try:
+        cam = get_camera(resolution=resolution, quality=quality)
+    except Exception as e:
+        print(f"[CameraBackend] Disabling camera stream: {e}")
+        return
 
     while True:
         try:
-            frame = backend.get_frame()
-        except Exception as e:
-            print(f"[CameraBackend] Disabling camera stream: {e}")
-            return  # Stop yielding frames forever
+            ts = time.time()
 
-        yield frame
+            # Capture raw frame
+            frame = cam.capture_array()
+
+            # Encode JPEG
+            ret, jpeg = cv2.imencode(
+                ".jpg",
+                frame,
+                [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+            )
+            jpeg_bytes = jpeg.tobytes()
+
+            yield {
+                "ministry": "picamera2",
+                "format": "jpeg",
+                "ts": ts,
+                "data": jpeg_bytes,
+            }
+
+        except Exception as e:
+            print(f"[CameraBackend] Camera capture failed: {e}")
+            return
+
         time.sleep(delay)
