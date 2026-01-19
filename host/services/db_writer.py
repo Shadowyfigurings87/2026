@@ -7,6 +7,7 @@ import threading
 import queue
 import time
 from pathlib import Path
+import json
 
 from host.services.metrics import (
     db_writes_total,
