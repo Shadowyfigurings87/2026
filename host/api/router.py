@@ -1,6 +1,8 @@
 # host/api/router.py
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from prometheus_client import make_asgi_app
 
 # Import all routers
@@ -18,8 +20,20 @@ from host.api.esp32 import router as esp32_router
 def create_api():
     app = FastAPI(title="Rover1 Host API", version="1.0.0")
 
-    # Include all ministry routers
-    app.include_router(telemetry_router, prefix="/telemetry", tags=["telemetry"])
+    # ---------------------------------------------------------
+    # STATIC + TEMPLATE MOUNTS
+    # ---------------------------------------------------------
+    app.mount("/static", StaticFiles(directory="host/static"), name="static")
+    templates = Jinja2Templates(directory="host/templates")
+
+    # ---------------------------------------------------------
+    # MINISTRY ROUTERS
+    # ---------------------------------------------------------
+
+    # Telemetry router ALREADY has prefix="/telemetry"
+    # so we include it WITHOUT adding another prefix.
+    app.include_router(telemetry_router)
+
     app.include_router(rf_router, prefix="/rf", tags=["rf"])
     app.include_router(arduino_router, prefix="/arduino", tags=["arduino"])
     app.include_router(health_router, prefix="/health", tags=["health"])
@@ -27,9 +41,11 @@ def create_api():
     app.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
     app.include_router(camera_router, prefix="/camera", tags=["camera"])
     app.include_router(command_router, prefix="/command", tags=["command"])
-    app.include_router(esp32_router, prefix="/arduino", tags=["esp32"])
+    app.include_router(esp32_router, prefix="/esp32", tags=["esp32"])
 
-    # Prometheus metrics
+    # ---------------------------------------------------------
+    # PROMETHEUS METRICS
+    # ---------------------------------------------------------
     metrics_app = make_asgi_app()
     app.mount("/metrics", metrics_app)
 

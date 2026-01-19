@@ -21,5 +21,18 @@ async function updateRFPanel() {
         console.error("RF panel update failed", e);
     }
 }
+async function refreshRfPanel() {
+    const res = await fetch("/rf/status");
+    if (!res.ok) return;
+    const data = await res.json();
 
-setInterval(updateRFPanel, 500);
+    document.getElementById("rf-link").textContent = data.link;
+    document.getElementById("rf-rssi").textContent = data.rssi;
+    document.getElementById("rf-packets-tx").textContent = data.packets_tx;
+    document.getElementById("rf-packets-rx").textContent = data.packets_rx;
+    document.getElementById("rf-last-heard").textContent = data.last_heard_seconds.toFixed(2);
+}
+
+setInterval(refreshRfPanel, 1000);
+refreshRfPanel();
+
