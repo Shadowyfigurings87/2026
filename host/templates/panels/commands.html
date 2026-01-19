@@ -1,0 +1,34 @@
+<h2>Rover Control</h2>
+
+<div class="drive-mode-panel">
+    <h3>Drive Mode</h3>
+    <div class="drive-mode-row">
+        <button id="mode-crawl" class="drive-mode-btn">Crawl</button>
+        <button id="mode-cruise" class="drive-mode-btn">Cruise</button>
+        <button id="mode-boost" class="drive-mode-btn">Boost</button>
+    </div>
+    <p class="hint">Boost requires holding SHIFT</p>
+</div>
+
+<div class="control-row">
+    <button id="btn-forward" class="control-btn">Forward</button>
+    <button id="btn-reverse" class="control-btn">Reverse</button>
+</div>
+
+<div class="control-row">
+    <button id="btn-dir-fwd" class="control-btn">Dir FWD</button>
+    <button id="btn-dir-rev" class="control-btn">Dir REV</button>
+</div>
+
+<div class="control-row">
+    <label>Throttle</label>
+    <input id="throttle" type="range" min="0" max="255" value="0">
+</div>
+
+<div class="control-row">
+    <button id="btn-stop" class="control-btn stop-btn">STOP</button>
+</div>
+
+<h3>Custom JSON Command</h3>
+<textarea id="custom-json" placeholder='{"type": "custom"}'></textarea>
+<button id="send-custom-btn">Send</button>

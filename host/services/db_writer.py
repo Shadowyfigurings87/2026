@@ -28,7 +28,7 @@ def _init_tables(conn):
     """
     cur = conn.cursor()
 
-    # Table for raw telemetry (already exists in your system)
+    # Table for raw telemetry
     cur.execute("""
         CREATE TABLE IF NOT EXISTS telemetry_raw (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +39,7 @@ def _init_tables(conn):
         )
     """)
 
-    # NEW: Table for latest ESP32 state
+    # Table for latest ESP32 state
     cur.execute("""
         CREATE TABLE IF NOT EXISTS esp32_state (
             id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -95,7 +95,7 @@ def start_db_writer():
 
 
 # ============================================================
-# NEW: ESP32 UPSERT
+# ESP32 UPSERT
 # ============================================================
 
 def upsert_esp32_state(status: str, queue_pressure: int | None, ts: str, raw: dict):

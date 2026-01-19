@@ -8,141 +8,30 @@
 
 <body>
 
-<!-- ========================= -->
 <!-- TOP BAR -->
-<!-- ========================= -->
 <div id="top-bar">
-    <span id="rover-status">Rover: --</span>
-    <span id="fps">FPS: --</span>
-    <span id="rpm">RPM: --</span>
-    <span id="queue-depth">Queue: --</span>
-    <span id="alerts"></span>
+    <span id="queue-depth-top">Queue: --</span>
+    <span id="ingestion-rate-top">Ingest: --</span>
+    <span id="heartbeat-top">Heartbeat: --</span>
+    <span id="camera-fps-top">FPS: --</span>
 </div>
 
-<!-- ========================= -->
-<!-- MAIN LAYOUT -->
-<!-- ========================= -->
-<div id="layout">
+<!-- SIDEBAR -->
+<nav id="sidebar">
+    <ul>
+        <li onclick="openPanel('camera')">Camera</li>
+        <li onclick="openPanel('telemetry')">Telemetry</li>
+        <li onclick="openPanel('commands')">Commands</li>
+        <li onclick="openPanel('rf')">RF</li>
+        <li onclick="openPanel('system')">System</li>
+        <li onclick="openPanel('events')">Events</li>
+    </ul>
+</nav>
 
-    <!-- ========================= -->
-    <!-- SIDEBAR NAVIGATION -->
-    <!-- ========================= -->
-    <nav id="sidebar">
-        <ul>
-            <li onclick="showPanel('camera-panel')">Camera</li>
-            <li onclick="showPanel('telemetry-panel')">Telemetry</li>
-            <li onclick="showPanel('commands-panel')">Commands</li>
-            <li onclick="showPanel('rf-panel')">RF</li>
-            <li onclick="showPanel('system-panel')">System</li>
-            <li onclick="showPanel('event-log-panel')">Event Log</li>
-        </ul>
-    </nav>
-
-    <!-- ========================= -->
-    <!-- MAIN PANEL AREA -->
-    <!-- ========================= -->
-    <main id="main-panel">
-
-        <!-- CAMERA PANEL -->
-        <section id="camera-panel" class="panel active">
-            <h2>Live Camera</h2>
-            <img id="camera-stream" src="/camera/stream" alt="Live Stream">
-            <h3>Latest Frame</h3>
-            <img id="camera-feed" src="/camera/latest" alt="Latest Frame">
-        </section>
-
-        <!-- TELEMETRY PANEL -->
-        <section id="telemetry-panel" class="panel">
-            <h2>Telemetry</h2>
-            <div id="telemetry-grid">
-                <div class="tile">RPM: <span id="rpm-value">--</span></div>
-                <div class="tile">Throttle: <span id="throttle-value">--</span></div>
-                <div class="tile">Direction: <span id="direction-value">--</span></div>
-                <div class="tile">Voltage: <span id="voltage-value">--</span></div>
-                <div class="tile">Temp: <span id="temp-value">--</span></div>
-            </div>
-
-            <h3>Telemetry Log</h3>
-            <div id="telemetry-log"></div>
-        </section>
-
-        <!-- COMMAND PANEL -->
-        <section id="commands-panel" class="panel">
-            <h2>Rover Control</h2>
-
-            <!-- Drive Mode -->
-            <div class="drive-mode-panel">
-                <h3>Drive Mode</h3>
-                <div class="drive-mode-row">
-                    <button id="mode-crawl" class="drive-mode-btn">Crawl</button>
-                    <button id="mode-cruise" class="drive-mode-btn">Cruise</button>
-                    <button id="mode-boost" class="drive-mode-btn">Boost</button>
-                </div>
-                <p class="hint">Boost requires holding SHIFT</p>
-            </div>
-
-            <!-- Movement Controls -->
-            <div class="control-row">
-                <button id="btn-forward" class="control-btn">Forward</button>
-                <button id="btn-reverse" class="control-btn">Reverse</button>
-            </div>
-
-            <div class="control-row">
-                <button id="btn-dir-fwd" class="control-btn">Dir FWD</button>
-                <button id="btn-dir-rev" class="control-btn">Dir REV</button>
-            </div>
-
-            <div class="control-row">
-                <label>Throttle</label>
-                <input id="throttle" type="range" min="0" max="255" value="0">
-            </div>
-
-            <div class="control-row">
-                <button id="btn-stop" class="control-btn stop-btn">STOP</button>
-            </div>
-
-            <p class="hint">Keyboard: W/S = throttle, A/D = direction, SPACE = stop</p>
-
-            <!-- Custom JSON Command -->
-            <h3>Custom JSON Command</h3>
-            <textarea id="custom-json" placeholder='{"type": "custom"}'></textarea>
-            <button onclick="sendCustom()">Send</button>
-        </section>
-
-        <!-- RF PANEL -->
-        <section id="rf-panel" class="panel">
-            <h2>RF Frames</h2>
-            <div id="rf-log"></div>
-        </section>
-
-        <!-- SYSTEM PANEL -->
-        <section id="system-panel" class="panel">
-            <h2>System Status</h2>
-            <div id="system-grid">
-                <div class="tile">CPU: <span id="cpu">--</span></div>
-                <div class="tile">Memory: <span id="mem">--</span></div>
-                <div class="tile">Disk: <span id="disk">--</span></div>
-                <div class="tile">Uptime: <span id="uptime">--</span></div>
-            </div>
-        </section>
-
-        <!-- EVENT LOG PANEL -->
-        <section id="event-log-panel" class="panel">
-            <h2>Event Log</h2>
-            <div id="event-log"></div>
-        </section>
-
-    </main>
-</div>
+<!-- FLOATING WINDOW CONTAINER -->
+<div id="window-area"></div>
 
 <script src="/static/js/dashboard.js"></script>
-
-<script>
-function showPanel(id) {
-    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-    document.getElementById(id).classList.add("active");
-}
-</script>
 
 </body>
 </html>

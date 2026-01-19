@@ -1,6 +1,11 @@
 # host/services/metrics.py
 
-from prometheus_client import Counter, Gauge, Histogram
+import time
+from prometheus_client import Counter, Gauge, Histogram, REGISTRY
+
+# ============================================================
+#  PROMETHEUS METRICS
+# ============================================================
 
 # -------- Counters (ever-increasing totals) --------
 
@@ -65,9 +70,9 @@ rf_frame_processing_seconds = Histogram(
     buckets=[0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
 )
 
-# -------- Helper functions for API layer --------
-
-from prometheus_client import REGISTRY
+# ============================================================
+#  HELPER FUNCTIONS FOR API LAYER
+# ============================================================
 
 def _get_metric_value(name: str):
     """Safely fetch a Prometheus metric value by name."""
@@ -77,27 +82,127 @@ def _get_metric_value(name: str):
     except Exception:
         return 0.0
 
+# ============================================================
+#  INGESTION RATE (EPS)
+# ============================================================
+
+_last_ingest_count = 0
+_last_ingest_time = time.time()
+
+def get_ingestion_rate():
+    global _last_ingest_count, _last_ingest_time
+
+    now = time.time()
+    current = ingest_total._value.get()
+
+    delta_count = current - _last_ingest_count
+    delta_time = now - _last_ingest_time
+
+    if delta_time <= 0:
+        return 0.0
+
+    rate = delta_count / delta_time
+
+    _last_ingest_count = current
+    _last_ingest_time = now
+
+    return round(rate, 2)
+
+# ============================================================
+#  ROVER HEARTBEAT TRACKING
+# ============================================================
+
+last_rover_packet_ts = time.time()
+
+def update_rover_heartbeat():
+    """Called whenever ANY rover packet arrives."""
+    global last_rover_packet_ts
+    last_rover_packet_ts = time.time()
+
+def get_rover_heartbeat_age():
+    """Seconds since last rover packet."""
+    return round(time.time() - last_rover_packet_ts, 2)
+
+# ============================================================
+#  ESP32 TELEMETRY (LATEST PACKET)
+# ============================================================
+
+latest_esp32_packet = {}
+latest_esp32_ts = 0
+
+def update_esp32_packet(packet: dict):
+    """Store the latest ESP32 packet in memory."""
+    global latest_esp32_packet, latest_esp32_ts
+    latest_esp32_packet = packet
+    latest_esp32_ts = time.time()
+
+def get_latest_esp32():
+    """Return latest ESP32 packet + age."""
+    age = round(time.time() - latest_esp32_ts, 2)
+    return {
+        "packet": latest_esp32_packet,
+        "age_seconds": age,
+    }
+
+# ============================================================
+#  RF + ALFA STATUS HELPERS
+# ============================================================
 
 def get_rf_status():
-    """Return RF telemetry for the dashboard."""
     return {
         "frame_rate_hz": _get_metric_value("rover_rf_frame_rate_hz"),
         "total_frames": _get_metric_value("rover_rf_frames_total"),
     }
 
-
 def get_alfa_status():
-    """Placeholder RTL88xx/Alfa adapter status."""
-    # You can expand this later when you add real RTL88xx metrics
     return {
         "status": "unknown",
         "devices": 0
     }
 
-
 def get_esp32_status():
-    """Return ESP32 queue pressure or status if you add metrics later."""
+    """Placeholder until you add real ESP32 metrics."""
     return {
         "status": "idle",
-        "queue_pressure": _get_metric_value("rover_watchdog_age_seconds")  # placeholder
+        "queue_pressure": _get_metric_value("rover_watchdog_age_seconds")
     }
+# ============================================================
+#  CAMERA FPS TRACKING
+# ============================================================
+
+_last_cam_frame_ts = 0
+_last_cam_fps_calc_ts = time.time()
+_cam_frame_counter = 0
+_cam_fps = 0.0
+
+def update_camera_frame():
+    """
+    Called every time a camera frame is ingested.
+    """
+    global _last_cam_frame_ts, _cam_frame_counter
+    _last_cam_frame_ts = time.time()
+    _cam_frame_counter += 1
+
+def get_camera_fps():
+    """
+    Returns rolling FPS based on frames counted in the last second.
+    """
+    global _last_cam_fps_calc_ts, _cam_frame_counter, _cam_fps
+
+    now = time.time()
+    delta = now - _last_cam_fps_calc_ts
+
+    if delta >= 1.0:
+        _cam_fps = _cam_frame_counter / delta
+        _cam_frame_counter = 0
+        _last_cam_fps_calc_ts = now
+
+    return round(_cam_fps, 2)
+
+def get_camera_last_frame_age():
+    """
+    Seconds since the last camera frame was received.
+    """
+    if _last_cam_frame_ts == 0:
+        return None
+    return round(time.time() - _last_cam_frame_ts, 2)

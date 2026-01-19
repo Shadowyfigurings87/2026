@@ -2,6 +2,7 @@
 
 from host.logs.logging import info
 from host.services import db_writer
+from host.services.metrics import update_esp32_packet, update_rover_heartbeat
 
 
 def handle_esp32_json(payload: dict) -> None:
@@ -23,6 +24,12 @@ def handle_esp32_json(payload: dict) -> None:
     queue_pressure = payload.get("_queue_pressure")
     ts = payload.get("timestamp") or payload.get("ts")
 
+    # Update heartbeat (ESP32 packets count as rover activity)
+    update_rover_heartbeat()
+
+    # Update in-memory ESP32 packet for dashboard
+    update_esp32_packet(payload)
+
     # Log ingestion event
     info(
         "esp32_ingest",
@@ -32,7 +39,7 @@ def handle_esp32_json(payload: dict) -> None:
         ts=ts,
     )
 
-    # Persist latest ESP32 state
+    # Persist latest ESP32 state in DB
     db_writer.upsert_esp32_state(
         status=status,
         queue_pressure=queue_pressure,

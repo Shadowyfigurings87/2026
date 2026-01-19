@@ -1,0 +1,41 @@
+.drive-mode-btn,
+.control-btn,
+#send-custom-btn {
+    background: #0a0a0a;
+    border: 1px solid #0ff;
+    color: #0ff;
+    padding: 8px 18px;
+    cursor: pointer;
+    box-shadow: 0 0 12px #0ff4;
+    transition: background 0.2s, color 0.2s;
+    text-shadow: 0 0 6px #0ff;
+}
+
+.drive-mode-btn:hover,
+.control-btn:hover,
+#send-custom-btn:hover {
+    background: #0ff;
+    color: #000;
+}
+
+.stop-btn {
+    border-color: #f00;
+    color: #f00;
+    box-shadow: 0 0 12px #f004;
+}
+
+.stop-btn:hover {
+    background: #f00;
+    color: #000;
+}
+
+#custom-json {
+    width: 100%;
+    height: 90px;
+    background: #050505;
+    border: 1px solid #0ff4;
+    color: #0ff;
+    padding: 10px;
+    font-family: monospace;
+    box-shadow: inset 0 0 12px #0ff3;
+}

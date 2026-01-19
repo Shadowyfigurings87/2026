@@ -1,6 +1,15 @@
 from fastapi import APIRouter, Response
 from fastapi.responses import StreamingResponse
 import host.services.frame_store as frame_store
+from host.services.metrics import get_camera_fps, get_camera_last_frame_age
+
+@router.get("/camera/fps")
+def camera_fps():
+    return {
+        "fps": get_camera_fps(),
+        "age_seconds": get_camera_last_frame_age()
+    }
+
 import time
 
 print(">>> LOADING CAMERA ROUTER <<<")
@@ -40,3 +49,10 @@ def camera_stream():
         frame_generator(),
         media_type=f"multipart/x-mixed-replace; boundary={boundary}"
     )
+
+@router.get("/camera/fps")
+def camera_fps():
+    return {
+        "fps": get_camera_fps(),
+        "age_seconds": get_camera_last_frame_age()
+    }
