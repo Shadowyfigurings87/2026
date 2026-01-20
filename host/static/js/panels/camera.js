@@ -2,15 +2,29 @@
 
 async function updateCameraPanel() {
     try {
-        const data = await fetch("/camera/fps").then(r => r.json());
+        const res = await fetch("/camera/fps");
+        if (!res.ok) return;
 
-        document.getElementById("camera-fps-panel").innerText = data.fps.toFixed(2);
-        document.getElementById("camera-age-panel").innerText =
-            data.age_seconds === null ? "--" : data.age_seconds.toFixed(2) + "s";
+        const data = await res.json();
 
-    } catch (e) {
-        console.error("Camera panel update failed", e);
+        // Update FPS
+        const fpsEl = document.getElementById("camera-fps-panel");
+        if (fpsEl) fpsEl.innerText = data.fps.toFixed(2);
+
+        // Update Age
+        const ageEl = document.getElementById("camera-age-panel");
+        if (ageEl) {
+            ageEl.innerText =
+                data.age_seconds === null
+                    ? "--"
+                    : data.age_seconds.toFixed(2) + "s";
+        }
+
+    } catch (err) {
+        console.error("Camera panel update failed:", err);
     }
 }
 
+// Update twice per second
 setInterval(updateCameraPanel, 500);
+updateCameraPanel();

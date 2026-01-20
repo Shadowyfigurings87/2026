@@ -4,10 +4,12 @@
 
 let zIndexCounter = 10;
 
+// Load a panel by name (camera, telemetry, rf, system, commands, events)
 function openPanel(name) {
-    fetch(`/static/panels/${name}.html`)
+    fetch(`/templates/panels/${name}.html`)
         .then(r => r.text())
-        .then(html => createWindow(name, html));
+        .then(html => createWindow(name, html))
+        .catch(err => console.error("Failed to load panel:", name, err));
 }
 
 function createWindow(name, html) {
@@ -17,16 +19,43 @@ function createWindow(name, html) {
     win.style.top = "80px";
     win.style.zIndex = zIndexCounter++;
 
+    // Base window structure
     win.innerHTML = `
         <div class="window-titlebar">
             <span>${name.toUpperCase()}</span>
             <button class="close-btn" onclick="this.parentElement.parentElement.remove()">×</button>
         </div>
-        <div class="window-content">${html}</div>
+        <div class="window-content"></div>
     `;
 
-    document.getElementById("window-area").appendChild(win);
+    const content = win.querySelector(".window-content");
 
+    // ===============================
+    // SAFE HTML INSERTION (CRITICAL)
+    // ===============================
+    // Use DOMParser to avoid browser sanitization of <img> and <script>
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    // Insert parsed nodes exactly as written
+    content.append(...doc.body.childNodes);
+
+    // ===============================
+    // SCRIPT LOADER (CRITICAL)
+    // ===============================
+    doc.querySelectorAll("script").forEach(oldScript => {
+        const newScript = document.createElement("script");
+
+        if (oldScript.src) {
+            newScript.src = oldScript.src;
+        } else {
+            newScript.textContent = oldScript.textContent;
+        }
+
+        document.body.appendChild(newScript);
+    });
+
+    document.getElementById("window-area").appendChild(win);
     makeDraggable(win);
 }
 
@@ -76,3 +105,4 @@ async function updateTopBar() {
 }
 
 setInterval(updateTopBar, 500);
+updateTopBar();
