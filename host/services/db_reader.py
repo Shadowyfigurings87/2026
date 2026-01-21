@@ -208,3 +208,17 @@ def get_system_stats() -> dict:
         "db_queue_depth": 0,
         "uptime_sec": 0.0,
     }
+    
+def get_latest_arduino_raw():
+    """
+    Returns the latest raw Arduino telemetry row from telemetry_raw.
+    """
+    sql = """
+        SELECT id, payload
+        FROM telemetry_raw
+        WHERE ministry='arduino'
+        ORDER BY id DESC
+        LIMIT 1
+    """
+    row = db.execute(sql).fetchone()
+    return row
