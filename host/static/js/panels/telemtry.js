@@ -2,7 +2,7 @@
 
 async function updateTelemetryPanel() {
     try {
-        const t = await fetch("/telemetry/latest").then(r => r.json());
+        const t = await fetch("/telemetry/arduino/latest").then(r => r.json());
 
         document.getElementById("rpm-value").innerText = t.rpm ?? "--";
         document.getElementById("throttle-value").innerText = t.throttle ?? "--";

@@ -24,10 +24,14 @@ def get_recent():
 
 @router.get("/arduino/latest")
 def get_arduino_latest():
-    state = db_reader.get_arduino_state()
-    if not state:
-        return {"rpm": 0, "throttle": None, "direction": None}
-    return state
+    state = db_reader.get_arduino_state() or {}
+    return {
+        "rpm": state.get("rpm"),
+        "throttle": state.get("throttle"),
+        "direction": state.get("direction"),
+        "voltage": state.get("voltage", None),
+        "temp": state.get("temp", None),
+    }
 
 @router.get("/arduino/rpm")
 def get_arduino_rpm():

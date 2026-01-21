@@ -6,7 +6,7 @@ let zIndexCounter = 10;
 
 // Load a panel by name (camera, telemetry, rf, system, commands, events)
 function openPanel(name) {
-    fetch(`/templates/panels/${name}.html`)
+    fetch(`/static/panels/${name}.html`)
         .then(r => r.text())
         .then(html => createWindow(name, html))
         .catch(err => console.error("Failed to load panel:", name, err));
