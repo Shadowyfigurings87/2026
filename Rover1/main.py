@@ -1,6 +1,13 @@
-# /home/zachariah/2026/Rover1/main.py
+# /home/balthazaar87/2026/Rover1/main.py
 
-from arduino import start_arduino_threads, find_working_serial_port
+import os
+import sys
+
+print("DEBUG: CWD =", os.getcwd())
+print("DEBUG: sys.path =", sys.path)
+
+# Correct imports for a script executed inside the Rover1 directory
+from arduino import start_arduino_threads
 from redrover_link.tcp_server import start_redrover_server
 from ministries.network.uplink import send_unified_uplink
 
@@ -8,22 +15,23 @@ from ministries.network.uplink import send_unified_uplink
 def main():
     print("Rover1 main.py starting…")
 
-    # Auto-detect Arduino serial port
-    port = find_working_serial_port()
-    if port is None:
-        raise RuntimeError("No working serial port found for Arduino")
+    # ---------------------------------------------------------
+    # Start Arduino ministry (auto-discovery + reconnect logic)
+    # ---------------------------------------------------------
+    print("Starting Arduino ministry…")
+    start_arduino_threads()
 
-    print(f"Arduino detected on {port}, starting threads…")
-    start_arduino_threads(port=port, baud=115200)
-
+    # ---------------------------------------------------------
     # Start RedRover link server (local TCP server for rover control)
+    # ---------------------------------------------------------
     print("Starting RedRover TCP server on port 9000…")
     start_redrover_server(host="0.0.0.0", port=9000)
 
+    # ---------------------------------------------------------
     # Unified uplink (telemetry + camera + commands)
-    # Connect to ngrok TCP tunnel
-    HOST = "2.tcp.ngrok.io"   # <-- correct ngrok hostname
-    PORT = 13023              # <-- your ngrok TCP port
+    # ---------------------------------------------------------
+    HOST = "2.tcp.ngrok.io"
+    PORT = 13023
 
     print(f"Starting unified uplink to {HOST}:{PORT}…")
     send_unified_uplink(

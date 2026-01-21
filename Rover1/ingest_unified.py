@@ -4,7 +4,7 @@ from collections import deque
 from datetime import datetime
 
 from redrover_link.tcp_server import redrover_queue
-from arduino import arduino_stream
+from arduino import arduino_stream, get_arduino_metrics
 from ministries.health.heartbeat import heartbeat_stream
 from ministries.health.watchdog import watchdog_stream
 
@@ -102,6 +102,7 @@ def merged_stream():
       - Queue pressure monitoring
       - Jitter smoothing on timestamps
       - Local health logging
+      - Arduino metrics emission
       - ISO8601 timestamp injection (required by host DB)
     """
 
@@ -110,7 +111,7 @@ def merged_stream():
         "ministry": "system",
         "event": "startup",
         "ts": time.time(),
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 
     arduino_gen = arduino_stream()
@@ -137,7 +138,13 @@ def merged_stream():
     last_pressure_log = 0
     pressure_log_interval = 5  # seconds
 
+    # Arduino metrics emission
+    last_arduino_metrics_emit = 0
+    arduino_metrics_interval = 5  # seconds
+
     while True:
+        now_loop = time.time()
+
         # -----------------------------
         # 1. Arduino
         # -----------------------------
@@ -153,6 +160,24 @@ def merged_stream():
                 yield obj
             except Exception:
                 break
+
+        # Periodic Arduino metrics snapshot
+        if now_loop - last_arduino_metrics_emit > arduino_metrics_interval:
+            try:
+                metrics = get_arduino_metrics()
+                metrics = ensure_ministry(metrics, "arduino")
+                metrics["event"] = "ministry_metrics"
+                metrics["ts"] = smoothers["arduino"].smooth(metrics.get("ts", time.time()))
+                metrics["timestamp"] = datetime.utcnow().isoformat() + "Z"
+
+                # Emit into stream
+                yield metrics
+
+                # Log locally
+                log_health("arduino_metrics", metrics)
+            except Exception:
+                pass
+            last_arduino_metrics_emit = now_loop
 
         # -----------------------------
         # 2. RedRover

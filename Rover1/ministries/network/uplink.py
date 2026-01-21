@@ -7,10 +7,12 @@
 # - Telemetry up
 # - Camera frames up (if available)
 # - Camera failure → telemetry-only mode
-# - No crashes, no repeated camera init attempts
+# - Timeout-safe listener (no crashes on silence)
+# - No repeated camera init attempts
 
 import threading
 import time
+import socket
 
 from ministries.utils.jsonl import safe_parse
 from ministries.control.motor import handle_command_packet
@@ -29,21 +31,45 @@ def _command_listener(sock):
     """
     Reads commands from the host and routes them to the correct ministry.
     Runs in its own daemon thread.
+
+    IMPORTANT:
+    - socket.timeout is NORMAL and should NOT kill the uplink.
+    - Only real disconnects or fatal errors should break the loop.
     """
+
+    # Ensure socket has a timeout so recv() doesn't block forever
+    sock.settimeout(5)
+
     try:
         with sock, sock.makefile("r") as f:
-            for line in f:
-                packet = safe_parse(line)
-                if not packet:
+            while True:
+                try:
+                    line = f.readline()
+
+                    # Host closed connection
+                    if not line:
+                        print("[Uplink] Listener: host closed connection")
+                        break
+
+                    packet = safe_parse(line)
+                    if not packet:
+                        continue
+
+                    try:
+                        handle_command_packet(packet)
+                    except Exception as e:
+                        print(f"[Uplink] Command handling error: {e}")
+
+                except socket.timeout:
+                    # Normal: host is silent
                     continue
 
-                try:
-                    handle_command_packet(packet)
                 except Exception as e:
-                    print(f"[Uplink] Command handling error: {e}")
+                    print(f"[Uplink] Listener fatal error: {e}")
+                    break
 
     except Exception as e:
-        print(f"[Uplink] Listener error: {e}")
+        print(f"[Uplink] Listener outer error: {e}")
 
 
 def send_unified_uplink(
@@ -62,7 +88,7 @@ def send_unified_uplink(
       - Telemetry up
       - Camera frames up (if available)
       - Camera failure → telemetry-only mode
-      - No crashes, no repeated camera init attempts
+      - Timeout-safe listener
     """
 
     while True:
