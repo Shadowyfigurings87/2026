@@ -1,30 +1,36 @@
-// CAMERA PANEL LOGIC
+// host/static/js/panels/camera.js
 
-async function updateCameraPanel() {
-    try {
-        const res = await fetch("/camera/fps");
-        if (!res.ok) return;
+let lastFrameTime = null;
+let fpsPanel = document.getElementById("camera-fps-panel");
+let agePanel = document.getElementById("camera-age-panel");
+let cameraImg = document.getElementById("camera-stream");
 
-        const data = await res.json();
+// Called whenever the <img> element receives a new frame
+cameraImg.onload = () => {
+    const now = performance.now();
 
-        // Update FPS
-        const fpsEl = document.getElementById("camera-fps-panel");
-        if (fpsEl) fpsEl.innerText = data.fps.toFixed(2);
-
-        // Update Age
-        const ageEl = document.getElementById("camera-age-panel");
-        if (ageEl) {
-            ageEl.innerText =
-                data.age_seconds === null
-                    ? "--"
-                    : data.age_seconds.toFixed(2) + "s";
-        }
-
-    } catch (err) {
-        console.error("Camera panel update failed:", err);
+    if (lastFrameTime !== null) {
+        const delta = (now - lastFrameTime) / 1000;
+        const fps = (1 / delta).toFixed(1);
+        fpsPanel.textContent = fps;
     }
-}
 
-// Update twice per second
-setInterval(updateCameraPanel, 500);
-updateCameraPanel();
+    lastFrameTime = now;
+};
+
+// Called if the MJPEG stream fails
+cameraImg.onerror = () => {
+    fpsPanel.textContent = "--";
+    agePanel.textContent = "--";
+};
+
+// Update "age" every second
+setInterval(() => {
+    if (lastFrameTime === null) {
+        agePanel.textContent = "--";
+        return;
+    }
+
+    const age = ((performance.now() - lastFrameTime) / 1000).toFixed(1);
+    agePanel.textContent = age + "s";
+}, 1000);

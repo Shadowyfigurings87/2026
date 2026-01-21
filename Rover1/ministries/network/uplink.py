@@ -1,14 +1,4 @@
 # Rover1/ministries/network/uplink.py
-#
-# Hardened unified uplink:
-# - One TCP connection
-# - Handshake + heartbeat
-# - Commands down
-# - Telemetry up
-# - Camera frames up (if available)
-# - Camera failure → telemetry-only mode
-# - Timeout-safe listener (no crashes on silence)
-# - No repeated camera init attempts
 
 import threading
 import time
@@ -22,22 +12,15 @@ from .packet_builder import (
     handshake_packet,
     heartbeat_packet,
     telemetry_packet,
-    camera_packet,
 )
-from .streams import unified_stream_with_camera
 
 
 def _command_listener(sock):
     """
     Reads commands from the host and routes them to the correct ministry.
-    Runs in its own daemon thread.
-
-    IMPORTANT:
-    - socket.timeout is NORMAL and should NOT kill the uplink.
-    - Only real disconnects or fatal errors should break the loop.
+    Timeout-safe: socket.timeout is normal.
     """
 
-    # Ensure socket has a timeout so recv() doesn't block forever
     sock.settimeout(5)
 
     try:
@@ -45,8 +28,6 @@ def _command_listener(sock):
             while True:
                 try:
                     line = f.readline()
-
-                    # Host closed connection
                     if not line:
                         print("[Uplink] Listener: host closed connection")
                         break
@@ -61,7 +42,6 @@ def _command_listener(sock):
                         print(f"[Uplink] Command handling error: {e}")
 
                 except socket.timeout:
-                    # Normal: host is silent
                     continue
 
                 except Exception as e:
@@ -75,19 +55,16 @@ def _command_listener(sock):
 def send_unified_uplink(
     host: str,
     port: int,
+    telemetry_generator,
     reconnect_delay: int = 5,
     heartbeat_interval: int = 5,
-    camera_fps: int = 10,
-    camera_weight: int = 5,
 ):
     """
     Hardened unified uplink:
       - One TCP connection
       - Handshake + heartbeat
       - Commands down
-      - Telemetry up
-      - Camera frames up (if available)
-      - Camera failure → telemetry-only mode
+      - Telemetry up (from ingestion ministry)
       - Timeout-safe listener
     """
 
@@ -95,15 +72,14 @@ def send_unified_uplink(
         sock = None
 
         try:
-            # Connect (with retry)
             sock = connect_with_retry(host, port, reconnect_delay=reconnect_delay)
 
-            # Handshake (ministry="system")
+            # Handshake
             hs = handshake_packet()
             print("[Uplink → Host]", hs.strip())
             sock.sendall(hs.encode("utf-8"))
 
-            # Command listener thread
+            # Command listener
             listener = threading.Thread(
                 target=_command_listener,
                 args=(sock,),
@@ -113,14 +89,7 @@ def send_unified_uplink(
             listener.start()
 
             last_send = time.time()
-            dropped_frames = 0
-            video_paused_until = 0
-
-            # Unified stream: telemetry + camera (camera may disable itself)
-            gen = unified_stream_with_camera(
-                camera_fps=camera_fps,
-                camera_weight=camera_weight,
-            )
+            gen = telemetry_generator
 
             with sock:
                 for obj in gen:
@@ -135,39 +104,15 @@ def send_unified_uplink(
                             break
                         last_send = now
 
-                    is_video = obj.get("ministry") == "picamera2"
-
-                    # Camera throttling
-                    if is_video and now < video_paused_until:
-                        continue
-
-                    # Build packet
-                    if is_video:
-                        line = camera_packet(obj)
-                    else:
-                        line = telemetry_packet(obj)
-
+                    # Build telemetry packet
+                    line = telemetry_packet(obj)
                     payload = line.encode("utf-8")
+
                     ok = safe_send(sock, payload)
-
-                    # Handle send failures
                     if not ok:
-                        if is_video:
-                            dropped_frames += 1
-                            print(f"[Uplink] Dropped video frame ({dropped_frames})")
-
-                            if dropped_frames >= 10:
-                                print("[Uplink] Pausing video for 1 second")
-                                video_paused_until = now + 1
-                                dropped_frames = 0
-
-                            continue
-
                         print("[Uplink] Telemetry send blocked — reconnecting")
                         break
 
-                    # Successful send
-                    dropped_frames = 0
                     last_send = now
                     print("[Uplink → Host]", line.strip())
 

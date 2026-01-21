@@ -1,15 +1,44 @@
-from picamera2 import Picamera2
+import time
 import threading
 
-_picam = None
-_lock = threading.Lock()
+try:
+    from picamera2 import Picamera2
+    from libcamera import Transform
+    PICAMERA_AVAILABLE = True
+except Exception as e:
+    print(f"[CameraBackend] Picamera2 import failed: {e}")
+    PICAMERA_AVAILABLE = False
 
-def get_camera():
+_picam = None
+_init_lock = threading.Lock()
+
+
+def get_camera(resolution=(640, 480)):
     global _picam
-    with _lock:
-        if _picam is None:
-            _picam = Picamera2()
-            config = _picam.create_video_configuration(main={"size": (640, 480)})
-            _picam.configure(config)
-            _picam.start()
-        return _picam
+
+    if not PICAMERA_AVAILABLE:
+        raise RuntimeError("Picamera2 not available")
+
+    with _init_lock:
+        if _picam is not None:
+            return _picam
+
+        try:
+            time.sleep(1.0)
+
+            cam = Picamera2()
+            config = cam.create_video_configuration(
+                main={"size": resolution},
+                transform=Transform(vflip=0, hflip=0),
+                buffer_count=4,
+            )
+            cam.configure(config)
+            cam.start()
+
+            _picam = cam
+            print("[CameraBackend] Picamera2 initialized")
+            return _picam
+
+        except Exception as e:
+            print(f"[CameraBackend] Camera init failed: {e}")
+            raise

@@ -3,6 +3,7 @@
 from host.logs.wrappers import log_system
 from host.services.connect.server import start_ingestion_server
 from host.services.db_writer import start_db_writer
+from host.services.camera import start_camera_server
 import threading
 import uvicorn
 
@@ -10,10 +11,13 @@ import uvicorn
 def main():
     log_system("host_service_start")
 
+    # Start camera server (port 5001)
+    threading.Thread(target=start_camera_server, daemon=True).start()
+
     # Start DB writer
     threading.Thread(target=start_db_writer, daemon=True).start()
 
-    # Start ingestion server in background
+    # Start ingestion server (port 5000)
     threading.Thread(target=start_ingestion_server, daemon=True).start()
 
     # Run FastAPI in the main thread

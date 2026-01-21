@@ -1,66 +1,27 @@
 # Rover1/ministries/network/packet_builder.py
-#
-# JSONL packet builders for uplink:
-# - handshake (system)
-# - heartbeat (system)
-# - telemetry (merged ministries)
-# - camera (picamera2)
 
-import base64
-import time
+import json
 from datetime import datetime
-from ministries.utils.jsonl import encode_jsonl
-
-
-def now_iso():
-    return datetime.utcnow().isoformat() + "Z"
 
 
 def handshake_packet():
-    return encode_jsonl({
+    return json.dumps({
         "ministry": "system",
         "event": "handshake",
-        "ts": time.time(),
-        "timestamp": now_iso(),
-    })
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }) + "\n"
 
 
 def heartbeat_packet():
-    return encode_jsonl({
+    return json.dumps({
         "ministry": "system",
         "event": "heartbeat",
-        "ts": time.time(),
-        "timestamp": now_iso(),
-    })
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }) + "\n"
 
 
-def telemetry_packet(obj):
+def telemetry_packet(obj: dict):
     """
-    obj is already a dict from merged_stream().
-    We only ensure timestamp formatting.
+    Build a JSONL telemetry packet.
     """
-    obj["timestamp"] = now_iso()
-    return encode_jsonl(obj)
-
-
-def camera_packet(frame_obj):
-    """
-    frame_obj = {
-        "ministry": "picamera2",
-        "format": "jpeg",
-        "ts": <float>,
-        "data": <bytes>
-    }
-    """
-    b64 = base64.b64encode(frame_obj["data"]).decode("ascii")
-
-    packet = {
-        "ministry": "picamera2",
-        "format": "jpeg",
-        "encoding": "base64",
-        "ts": frame_obj["ts"],
-        "timestamp": now_iso(),
-        "data": b64,
-    }
-
-    return encode_jsonl(packet)
+    return json.dumps(obj, separators=(",", ":")) + "\n"
