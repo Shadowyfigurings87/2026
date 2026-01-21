@@ -1,6 +1,9 @@
-# ingestion/metrics/arduino_metrics.py
+# ministries/ingestion/metrics/arduino_metrics.py
 
-from arduino import get_arduino_metrics
+from ministries.arduino.state import get_metrics
 
-def get_metrics():
-    return get_arduino_metrics()
+def arduino_metrics():
+    """
+    Returns Arduino ministry health metrics for ingestion.
+    """
+    return get_metrics()

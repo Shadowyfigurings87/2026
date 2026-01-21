@@ -1,67 +1,29 @@
-# /home/balthazaar87/2026/Rover1/main.py
+# Rover1/main.py
 
-import os
-import sys
-
-print("DEBUG: CWD =", os.getcwd())
-print("DEBUG: sys.path =", sys.path)
-
-# ---------------------------------------------------------
-# Ministry imports
-# ---------------------------------------------------------
-from arduino import start_arduino_threads
-from redrover_link.tcp_server import start_redrover_server
-
-# NEW: unified ingestion ministry (modularized)
-from ministries.ingestion.base import merged_stream
-
-# Unified uplink (telemetry + commands)
+import threading
+from ministries.arduino.service import start_arduino_ministry
+from ministries.camera.camera_ministry import start_camera_ministry
 from ministries.network.uplink import send_unified_uplink
+from ministries.ingestion.ingest import telemetry_generator
 
-# NEW: camera ministry (independent MJPEG uplink)
-from ministries.camera import start_camera_ministry
-
+HOST = "2.tcp.ngrok.io"      # your telemetry ngrok domain
+PORT = 12690                 # your telemetry ngrok port
 
 def main():
-    print("Rover1 main.py starting…")
+    print("[Rover1] Starting ministries...")
 
-    # ---------------------------------------------------------
-    # Start Arduino ministry (auto-discovery + reconnect logic)
-    # ---------------------------------------------------------
-    print("Starting Arduino ministry…")
-    start_arduino_threads()
+    # Arduino ministry
+    start_arduino_ministry()
 
-    # ---------------------------------------------------------
-    # Start RedRover link server (local TCP server for rover control)
-    # ---------------------------------------------------------
-    print("Starting RedRover TCP server on port 9000…")
-    start_redrover_server(host="0.0.0.0", port=9000)
-
-    # ---------------------------------------------------------
-    # Start Camera ministry (independent MJPEG uplink)
-    # ---------------------------------------------------------
-    print("Starting Camera ministry…")
+    # Camera ministry
     start_camera_ministry()
 
-    # ---------------------------------------------------------
-    # Unified uplink (telemetry + commands)
-    # Now powered by the new ingestion ministry
-    # ---------------------------------------------------------
-    HOST = "2.tcp.ngrok.io"
-    PORT = 12690
-
-    print(f"Starting unified uplink to {HOST}:{PORT}…")
-
-    uplink_gen = merged_stream()
-
+    # Telemetry uplink (runs forever)
     send_unified_uplink(
         host=HOST,
         port=PORT,
-        reconnect_delay=5,
-        heartbeat_interval=5,
-        telemetry_generator=uplink_gen,
+        telemetry_generator=telemetry_generator(),
     )
-
 
 if __name__ == "__main__":
     main()
