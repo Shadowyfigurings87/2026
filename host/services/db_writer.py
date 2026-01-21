@@ -28,7 +28,9 @@ def _init_tables(conn):
     """
     cur = conn.cursor()
 
-    # Table for raw telemetry
+    # -------------------------------------------------------
+    # RAW TELEMETRY TABLE
+    # -------------------------------------------------------
     cur.execute("""
         CREATE TABLE IF NOT EXISTS telemetry_raw (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,12 +41,29 @@ def _init_tables(conn):
         )
     """)
 
-    # Table for latest ESP32 state
+    # -------------------------------------------------------
+    # ESP32 STATE TABLE
+    # -------------------------------------------------------
     cur.execute("""
         CREATE TABLE IF NOT EXISTS esp32_state (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             status TEXT,
             queue_pressure INTEGER,
+            ts TEXT,
+            raw TEXT
+        )
+    """)
+
+    # -------------------------------------------------------
+    # ARDUINO STATE TABLE (NEW)
+    # -------------------------------------------------------
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS arduino_state (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            rpm REAL,
+            throttle REAL,
+            direction TEXT,
+            pwm INTEGER,
             ts TEXT,
             raw TEXT
         )
@@ -114,4 +133,29 @@ def upsert_esp32_state(status: str, queue_pressure: int | None, ts: str, raw: di
             raw = excluded.raw
         """,
         (status, queue_pressure, ts, json.dumps(raw)),
+    ))
+
+
+# ============================================================
+# ARDUINO UPSERT (NEW)
+# ============================================================
+
+def upsert_arduino_state(rpm: float, throttle: float, direction: str, pwm: int, ts: str, raw: dict):
+    """
+    Store the latest Arduino state in a single-row table.
+    Mirrors the ESP32 UPSERT pattern.
+    """
+    write_queue.put((
+        """
+        INSERT INTO arduino_state (id, rpm, throttle, direction, pwm, ts, raw)
+        VALUES (1, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            rpm = excluded.rpm,
+            throttle = excluded.throttle,
+            direction = excluded.direction,
+            pwm = excluded.pwm,
+            ts = excluded.ts,
+            raw = excluded.raw
+        """,
+        (rpm, throttle, direction, pwm, ts, json.dumps(raw)),
     ))

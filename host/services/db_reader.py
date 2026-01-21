@@ -4,8 +4,9 @@ import sqlite3
 import json
 from typing import List, Optional, Any
 from datetime import datetime, timezone
+from pathlib import Path
 
-DB_PATH = "host.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "host.db"
 
 
 def _connect():
@@ -86,7 +87,7 @@ def get_recent_rf(limit: int = 100) -> List[dict]:
 
 
 # ============================================================
-# ARDUINO (legacy fallback)
+# ARDUINO (legacy fallback from telemetry_raw)
 # ============================================================
 
 def get_arduino_state() -> Optional[dict]:
@@ -116,6 +117,64 @@ def get_arduino_state() -> Optional[dict]:
         "timestamp_utc": row["timestamp_utc"],
         "state": payload,
     }
+
+
+# ============================================================
+# ARDUINO (new decoded state table)
+# ============================================================
+
+def get_latest_arduino_state() -> Optional[dict]:
+    """
+    Returns the latest decoded Arduino state from arduino_state.
+    """
+    conn = _connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT rpm, throttle, direction, pwm, ts, raw
+        FROM arduino_state
+        WHERE id = 1
+    """)
+
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    try:
+        raw = json.loads(row["raw"]) if row["raw"] else None
+    except Exception:
+        raw = row["raw"]
+
+    return {
+        "rpm": row["rpm"],
+        "throttle": row["throttle"],
+        "direction": row["direction"],
+        "pwm": row["pwm"],
+        "ts": row["ts"],
+        "raw": raw,
+    }
+
+
+def get_latest_arduino_raw() -> Optional[sqlite3.Row]:
+    """
+    Returns the latest raw Arduino telemetry row from telemetry_raw.
+    """
+    conn = _connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id, payload
+        FROM telemetry_raw
+        WHERE ministry='arduino'
+        ORDER BY id DESC
+        LIMIT 1
+    """)
+
+    row = cur.fetchone()
+    conn.close()
+    return row
 
 
 # ============================================================
@@ -208,17 +267,3 @@ def get_system_stats() -> dict:
         "db_queue_depth": 0,
         "uptime_sec": 0.0,
     }
-    
-def get_latest_arduino_raw():
-    """
-    Returns the latest raw Arduino telemetry row from telemetry_raw.
-    """
-    sql = """
-        SELECT id, payload
-        FROM telemetry_raw
-        WHERE ministry='arduino'
-        ORDER BY id DESC
-        LIMIT 1
-    """
-    row = db.execute(sql).fetchone()
-    return row

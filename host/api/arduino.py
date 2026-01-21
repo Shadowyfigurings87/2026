@@ -7,24 +7,24 @@ from host.services.command_router import (
     send_custom,
 )
 
-# NEW: import the Arduino state pipeline
-from host.services.arduino_state import get_latest_arduino_state
+# NEW: use db_reader directly (no more arduino_state.py)
 from host.services import db_reader
 
 router = APIRouter()
 
 
 # ---------------------------------------------------------
-# ARDUINO STATE (DECODED TELEMETRY)
+# ARDUINO STATE (DECODED TELEMETRY FROM arduino_state TABLE)
 # ---------------------------------------------------------
 
 @router.get("/state")
 def get_arduino_state():
     """
     Returns the most recent decoded Arduino telemetry snapshot.
+    Pulled from the arduino_state table (single-row UPSERT).
     """
     try:
-        state = get_latest_arduino_state()
+        state = db_reader.get_latest_arduino_state()
 
         if not state:
             log_arduino("arduino_state_missing")
@@ -51,13 +51,16 @@ def get_arduino_state():
 @router.get("/recent")
 def get_recent_arduino():
     """
-    Returns recent raw Arduino telemetry rows from SQLite.
+    Returns recent raw Arduino telemetry rows from telemetry_raw.
     Useful for debugging or verifying firmware output.
     """
     try:
-        rows = db_reader.get_recent_arduino_telemetry()
-        log_arduino("arduino_recent_requested", count=len(rows))
-        return {"rows": rows}
+        # Use the generic telemetry fetcher and filter client-side
+        rows = db_reader.get_recent_telemetry(limit=100)
+        arduino_rows = [r for r in rows if r["ministry"] == "arduino"]
+
+        log_arduino("arduino_recent_requested", count=len(arduino_rows))
+        return {"rows": arduino_rows}
 
     except Exception as e:
         log_arduino("arduino_recent_error", error=str(e))
