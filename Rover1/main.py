@@ -48,7 +48,7 @@ def main():
     # Now powered by the new ingestion ministry
     # ---------------------------------------------------------
     HOST = "2.tcp.ngrok.io"
-    PORT = 13023
+    PORT = 12690
 
     print(f"Starting unified uplink to {HOST}:{PORT}…")
 
