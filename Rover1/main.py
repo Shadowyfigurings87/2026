@@ -1,29 +1,62 @@
 # Rover1/main.py
 
 import threading
+import time
+
 from ministries.arduino.service import start_arduino_ministry
 from ministries.camera.camera_ministry import start_camera_ministry
 from ministries.network.uplink import send_unified_uplink
 from ministries.ingestion.ingest import telemetry_generator
 
-HOST = "2.tcp.ngrok.io"      # your telemetry ngrok domain
-PORT = 12690                 # your telemetry ngrok port
+# Telemetry tunnel (ngrok A)
+TELEMETRY_HOST = "8.tcp.ngrok.io"
+TELEMETRY_PORT = 19760
+
 
 def main():
-    print("[Rover1] Starting ministries...")
+    print("\n==============================")
+    print(" [Rover1] Boot Sequence Start ")
+    print("==============================\n")
 
     # Arduino ministry
-    start_arduino_ministry()
+    print("[Rover1] Initializing Arduino ministry…")
+    try:
+        start_arduino_ministry()
+        print("[Rover1] Arduino ministry started successfully")
+    except Exception as e:
+        print(f"[Rover1] ERROR: Arduino ministry failed to start: {e}")
 
-    # Camera ministry
-    start_camera_ministry()
+    # Camera ministry (self-contained)
+    print("\n[Rover1] Initializing Camera ministry (self-contained)…")
+    try:
+        start_camera_ministry()
+        print("[Rover1] Camera ministry started successfully")
+    except Exception as e:
+        print(f"[Rover1] ERROR: Camera ministry failed to start: {e}")
 
-    # Telemetry uplink (runs forever)
-    send_unified_uplink(
-        host=HOST,
-        port=PORT,
-        telemetry_generator=telemetry_generator(),
-    )
+    # Telemetry uplink
+    print(f"\n[Rover1] Starting Telemetry uplink → {TELEMETRY_HOST}:{TELEMETRY_PORT}")
+    print("[Rover1] Telemetry generator initializing…")
+    try:
+        tg = telemetry_generator()
+        print("[Rover1] Telemetry generator ready")
+    except Exception as e:
+        print(f"[Rover1] ERROR: Failed to create telemetry generator: {e}")
+        tg = None
+
+    print("[Rover1] Entering unified telemetry uplink loop…")
+    try:
+        send_unified_uplink(
+            host=TELEMETRY_HOST,
+            port=TELEMETRY_PORT,
+            telemetry_generator=tg,
+        )
+    except Exception as e:
+        print(f"[Rover1] ERROR: Telemetry uplink crashed: {e}")
+
+    print("\n[Rover1] MAIN LOOP EXITED — this should never happen\n")
+
 
 if __name__ == "__main__":
+    print("[Rover1] Executing main()…")
     main()

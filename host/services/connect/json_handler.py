@@ -4,13 +4,11 @@ import json
 import base64
 
 from host.logs.wrappers import log_ingest
-from host.services.frame_store import save_frame, store_latest_frame
 from host.services.db_writer import write_queue
 from host.services.metrics import (
     ingest_total,
     ingestion_queue_depth,
     update_rover_heartbeat,
-    update_camera_frame,
 )
 
 from .worker import ingestion_queue
@@ -64,10 +62,6 @@ def route_ministry(obj, ministry):
         log_ingest("rf_frame_stub", payload=obj)
         return
 
-    if ministry == "picamera2":
-        # Camera frames handled earlier
-        return
-
     if ministry == "system":
         log_ingest("system_event", payload=obj)
         return
@@ -80,6 +74,10 @@ def route_ministry(obj, ministry):
 # ============================================================
 
 def handle_json_client(conn, addr):
+    """
+    Handles line-delimited JSON telemetry from any ministry.
+    Camera frames are no longer processed here.
+    """
     log_ingest("json_client_connected", addr=str(addr))
     set_rover_socket(conn)
 
@@ -102,26 +100,8 @@ def handle_json_client(conn, addr):
                 ministry = (
                     obj.get("ministry")
                     or obj.get("device")
-                    or ("picamera2" if "frame" in obj else "unknown")
+                    or "unknown"
                 )
-
-                # Camera frame handling
-                frame_b64 = (
-                    obj.pop("frame", None)
-                    or obj.pop("jpeg", None)
-                    or obj.pop("data", None)
-                )
-
-                if frame_b64:
-                    try:
-                        binary = base64.b64decode(frame_b64)
-                        update_camera_frame()
-                        store_latest_frame(binary)
-                        path = save_frame(binary)
-                        obj["frame_path"] = path
-                        log_ingest("camera_frame_ingested", size=len(binary))
-                    except Exception as e:
-                        log_ingest("camera_frame_decode_error", error=str(e))
 
                 # Route to ministry handler
                 route_ministry(obj, ministry)

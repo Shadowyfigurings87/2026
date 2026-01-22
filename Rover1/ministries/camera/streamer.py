@@ -1,10 +1,11 @@
 # Rover1/ministries/camera/streamer.py
 #
-# Sovereign CameraBackend (final form)
+# Sovereign CameraBackend (dual-uplink version)
 # - True singleton Picamera2 instance
 # - Thread-safe initialization
-# - No double-start, no race conditions
-# - Stable JPEG capture for unified uplink
+# - Stable JPEG capture for MJPEG uplink
+# - Raw JPEG bytes output (NOT dicts)
+# - Full debug instrumentation
 
 import time
 import threading
@@ -33,14 +34,18 @@ def get_camera(resolution=(640, 480), quality=90):
     """
     global _picam
 
+    print("[CameraBackend] get_camera() called")
+
     if not PICAMERA_AVAILABLE:
         raise RuntimeError("Picamera2 not available on this system")
 
     with _init_lock:
         if _picam is not None:
+            print("[CameraBackend] Returning existing singleton camera")
             return _picam
 
         try:
+            print("[CameraBackend] Initializing Picamera2…")
             time.sleep(1.0)  # warm-up for libcamera pipeline
 
             cam = Picamera2()
@@ -51,6 +56,7 @@ def get_camera(resolution=(640, 480), quality=90):
                 buffer_count=2,
             )
 
+            print(f"[CameraBackend] Applying config: {resolution}")
             cam.configure(config)
             cam.start()
 
@@ -65,13 +71,15 @@ def get_camera(resolution=(640, 480), quality=90):
 
 
 # ------------------------------------------------------------
-# FRAME GENERATOR
+# FRAME GENERATOR (raw JPEG bytes)
 # ------------------------------------------------------------
 def camera_frame_generator(camera_fps=10, resolution=(640, 480), quality=90):
     """
-    Yields JPEG frames at a controlled FPS.
-    Uses the global singleton camera instance.
+    Yields raw JPEG bytes at a controlled FPS.
+    Designed for MJPEG uplink.
     """
+    print(f"[CameraBackend] Starting frame generator: {camera_fps} FPS, {resolution}, Q={quality}")
+
     delay = 1.0 / max(camera_fps, 1)
 
     try:
@@ -80,30 +88,36 @@ def camera_frame_generator(camera_fps=10, resolution=(640, 480), quality=90):
         print(f"[CameraBackend] Disabling camera stream: {e}")
         return
 
+    frames = 0
+    last_fps_time = time.time()
+
     while True:
+        loop_start = time.time()
+
         try:
-            ts = time.time()
-
-            # Capture raw frame
+            # Capture
+            cap_start = time.time()
             frame = cam.capture_array()
+            cap_time = time.time() - cap_start
+            print(f"[CameraBackend] Capture OK ({cap_time*1000:.2f} ms)")
 
-            # Encode JPEG
+            # Encode
+            enc_start = time.time()
             ret, jpeg = cv2.imencode(
                 ".jpg",
                 frame,
                 [int(cv2.IMWRITE_JPEG_QUALITY), quality]
             )
             jpeg_bytes = jpeg.tobytes()
+            enc_time = time.time() - enc_start
+            print(f"[CameraBackend] Encode OK ({enc_time*1000:.2f} ms)")
 
-            yield {
-                "ministry": "picamera2",
-                "format": "jpeg",
-                "ts": ts,
-                "data": jpeg_bytes,
-            }
+            frames += 1
 
-        except Exception as e:
-            print(f"[CameraBackend] Camera capture failed: {e}")
-            return
+            # FPS debug
+            now = time.time()
+            if now - last_fps_time >= 1.0:
+                print(f"[CameraBackend] FPS={frames}")
+                frames = 0
+                last_fps_time = now
 
-        time.sleep(delay)

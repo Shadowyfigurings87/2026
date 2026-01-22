@@ -1,33 +1,36 @@
-# host/main.py
+# Rover1/main.py
 
-from host.logs.wrappers import log_system
-from host.services.connect.server import start_ingestion_server
-from host.services.db_writer import start_db_writer
-from host.services.camera import start_camera_server
 import threading
-import uvicorn
+
+from ministries.arduino.service import start_arduino_ministry
+from ministries.camera.camera_ministry import start_camera_ministry
+from ministries.network.uplink import send_unified_uplink
+from ministries.ingestion.ingest import telemetry_generator
+
+# Telemetry tunnel (ngrok A)
+TELEMETRY_HOST = "8.tcp.ngrok.io"
+TELEMETRY_PORT = 19760
+
+# Camera tunnel (ngrok B)
+# These values come from ministries/camera/config.py
+# but you can override them here if needed.
+from ministries.camera.config import HOST as CAMERA_HOST, PORT as CAMERA_PORT
 
 
 def main():
-    log_system("host_service_start")
+    print("[Rover1] Starting ministries...")
 
-    # Start camera server (port 5001)
-    threading.Thread(target=start_camera_server, daemon=True).start()
+    # Arduino ministry (local)
+    start_arduino_ministry()
 
-    # Start DB writer
-    threading.Thread(target=start_db_writer, daemon=True).start()
+    # Camera ministry (local capture + encoding + its own uplink)
+    start_camera_ministry()
 
-    # Start ingestion server (port 5000)
-    threading.Thread(target=start_ingestion_server, daemon=True).start()
-
-    # Run FastAPI in the main thread
-    from host.api.router import app
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        reload=False,
-        workers=1,
+    # Telemetry uplink (separate TCP client)
+    send_unified_uplink(
+        host=TELEMETRY_HOST,
+        port=TELEMETRY_PORT,
+        telemetry_generator=telemetry_generator(),
     )
 
 
