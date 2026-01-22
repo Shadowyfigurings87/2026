@@ -1,27 +1,21 @@
-# ingestion/streams/arduino_stream.py
+# ministries/ingestion/streams/arduino_stream.py
 
 import time
-from ministries.arduino.state import latest_structured_event
+from ministries.arduino.service import arduino_stream
 
-def arduino_stream():
+def arduino_ingest_stream():
     """
-    Yields structured Arduino events from the new modular Arduino ministry.
+    Wraps the Arduino ministry's arduino_stream() generator
+    and emits ingestion-ready telemetry dicts.
     """
-    last_seen = None
+    for event in arduino_stream():
+        if not isinstance(event, dict):
+            continue
 
-    while True:
-        evt = latest_structured_event()
+        # Ensure ministry tag
+        event.setdefault("ministry", "arduino")
 
-        if evt and evt != last_seen:
-            last_seen = evt
+        # Ensure timestamp
+        event.setdefault("ts", time.time())
 
-            yield {
-                "ministry": "arduino",
-                "event": evt.get("event"),
-                "ts": evt.get("ts"),
-                "raw": evt.get("raw"),
-                "data": evt.get("data"),
-                "latency": evt.get("latency"),
-            }
-
-        time.sleep(0.01)
+        yield event

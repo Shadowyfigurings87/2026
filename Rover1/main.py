@@ -6,7 +6,7 @@ import time
 from ministries.arduino.service import start_arduino_ministry
 from ministries.camera.camera_ministry import start_camera_ministry
 from ministries.network.uplink import send_unified_uplink
-from ministries.ingestion.ingest import telemetry_generator
+from ministries.ingestion.base  import merged_stream
 
 # Telemetry tunnel (ngrok A)
 TELEMETRY_HOST = "8.tcp.ngrok.io"
@@ -38,7 +38,7 @@ def main():
     print(f"\n[Rover1] Starting Telemetry uplink → {TELEMETRY_HOST}:{TELEMETRY_PORT}")
     print("[Rover1] Telemetry generator initializing…")
     try:
-        tg = telemetry_generator()
+        tg = merged_stream()
         print("[Rover1] Telemetry generator ready")
     except Exception as e:
         print(f"[Rover1] ERROR: Failed to create telemetry generator: {e}")

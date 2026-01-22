@@ -3,17 +3,17 @@
 import time
 from datetime import datetime
 
-from ingestion.streams.arduino_stream import arduino_stream
-from ingestion.streams.redrover_stream import redrover_stream
-from ingestion.streams.heartbeat_stream import heartbeat_stream
-from ingestion.streams.watchdog_stream import watchdog_stream
+from ministries.ingestion.streams.arduino_stream import arduino_ingest_stream
+from ministries.ingestion.streams.redrover_stream import redrover_stream
+from ministries.ingestion.streams.heartbeat_stream import heartbeat_stream
+from ministries.ingestion.streams.watchdog_stream import watchdog_stream
 
-from ingestion.utils.jitter import JitterSmoother
-from ingestion.utils.ministry import ensure_ministry
-from ingestion.utils.health_logger import log_health
+from ministries.ingestion.utils.jitter import JitterSmoother
+from ministries.ingestion.utils.ministry import ensure_ministry
+from ministries.ingestion.utils.health_logger import log_health
 
-from ingestion.metrics.arduino_metrics import get_arduino_metrics
-from ingestion.config import (
+from ministries.ingestion.metrics.arduino_metrics import get_arduino_metrics
+from ministries.ingestion.config import (
     WEIGHTS,
     ARDUINO_METRICS_INTERVAL,
     PRESSURE_LOG_INTERVAL,
@@ -32,7 +32,7 @@ def merged_stream():
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 
-    arduino_gen = arduino_stream()
+    arduino_gen = arduino_ingest_stream()
     redrover_gen = redrover_stream()
     hb_gen = heartbeat_stream(interval=5)
     wd_gen = watchdog_stream(check_interval=3)
