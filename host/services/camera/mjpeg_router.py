@@ -1,6 +1,6 @@
 # host/services/camera/mjpeg_router.py
 
-from fastapi import Response
+from fastapi.responses import StreamingResponse
 from .server import frame_buffer
 
 def mjpeg_stream():
@@ -21,7 +21,7 @@ def mjpeg_stream():
 def register_routes(app):
     @app.get("/camera/mjpeg")
     def camera_mjpeg():
-        return Response(
+        return StreamingResponse(
             mjpeg_stream(),
             media_type="multipart/x-mixed-replace; boundary=frame"
         )

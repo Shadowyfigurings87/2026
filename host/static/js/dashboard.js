@@ -92,12 +92,10 @@ async function updateTopBar() {
         const q = await fetch("/telemetry/queue_depth").then(r => r.json());
         const i = await fetch("/telemetry/ingestion_rate").then(r => r.json());
         const h = await fetch("/telemetry/rover_heartbeat").then(r => r.json());
-        const c = await fetch("/camera/fps").then(r => r.json());
 
         document.getElementById("queue-depth-top").innerText = "Queue: " + q.queue_depth;
         document.getElementById("ingestion-rate-top").innerText = "Ingest: " + i.ingestion_rate;
         document.getElementById("heartbeat-top").innerText = "Heartbeat: " + h.age_seconds;
-        document.getElementById("camera-fps-top").innerText = "FPS: " + c.fps;
 
     } catch (e) {
         console.error("Top bar update failed", e);

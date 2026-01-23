@@ -9,8 +9,8 @@ from ministries.network.uplink import send_unified_uplink
 from ministries.ingestion.base  import merged_stream
 
 # Telemetry tunnel (ngrok A)
-TELEMETRY_HOST = "8.tcp.ngrok.io"
-TELEMETRY_PORT = 19760
+TELEMETRY_HOST = "0.tcp.ngrok.io"
+TELEMETRY_PORT = 16109
 
 
 def main():

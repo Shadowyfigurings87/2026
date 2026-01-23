@@ -1,11 +1,19 @@
 // host/static/js/panels/camera.js
 
 let lastFrameTime = null;
-let fpsPanel = document.getElementById("camera-fps-panel");
-let agePanel = document.getElementById("camera-age-panel");
-let cameraImg = document.getElementById("camera-stream");
 
-// Called whenever the <img> element receives a new frame
+const fpsPanel = document.getElementById("camera-fps-panel");
+const agePanel = document.getElementById("camera-age-panel");
+const cameraImg = document.getElementById("camera-stream");
+
+// ---------------------------------------------------------
+// SET MJPEG STREAM SOURCE
+// ---------------------------------------------------------
+cameraImg.src = "/camera/mjpeg";
+
+// ---------------------------------------------------------
+// FRAME ARRIVAL HANDLER
+// ---------------------------------------------------------
 cameraImg.onload = () => {
     const now = performance.now();
 
@@ -18,13 +26,17 @@ cameraImg.onload = () => {
     lastFrameTime = now;
 };
 
-// Called if the MJPEG stream fails
+// ---------------------------------------------------------
+// STREAM ERROR HANDLER
+// ---------------------------------------------------------
 cameraImg.onerror = () => {
     fpsPanel.textContent = "--";
     agePanel.textContent = "--";
 };
 
-// Update "age" every second
+// ---------------------------------------------------------
+// AGE UPDATER
+// ---------------------------------------------------------
 setInterval(() => {
     if (lastFrameTime === null) {
         agePanel.textContent = "--";
