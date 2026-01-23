@@ -4,9 +4,6 @@ import time
 import serial
 
 from .state import (
-    ser,
-    set_serial_handle,
-    latest_line,
     set_latest_line,
     metrics,
     last_heartbeat_ts,
@@ -16,23 +13,14 @@ from .serial_link import open_serial_port
 from .parser import parse_line
 
 
-HEARTBEAT_TIMEOUT = 2.0        # seconds without HB → suspect dead
-RECONNECT_BACKOFF = 2.0        # seconds between reconnect attempts
+HEARTBEAT_TIMEOUT = 2.0
+RECONNECT_BACKOFF = 2.0
 
 
 def arduino_reader_thread():
-    """
-    Robust Arduino reader thread:
-      - Opens serial port (with autodiscovery)
-      - Reads raw lines
-      - Parses them
-      - Updates latest_line for arduino_stream()
-      - Tracks metrics
-      - Handles reconnects
-      - Handles heartbeat timeout
-    """
+    print("[Arduino] Reader thread starting…")
 
-    global ser
+    ser = None  # local handle owned by this thread
 
     while True:
         # ---------------------------------------------------------
@@ -44,8 +32,7 @@ def arduino_reader_thread():
                 metrics["reconnect_count"] += 1
                 metrics["last_reconnect_reason"] = "port_closed"
 
-                new_ser = open_serial_port()
-                set_serial_handle(new_ser)
+                ser = open_serial_port()
                 print("[Arduino] Serial port opened successfully")
 
             except Exception as e:
@@ -74,18 +61,14 @@ def arduino_reader_thread():
 
             metrics["lines_read"] += 1
 
-            # -----------------------------------------------------
-            # Parse the line into a structured event
-            # -----------------------------------------------------
+            # Parse structured event
             event = parse_line(line)
 
             # Heartbeat tracking
             if isinstance(event, dict) and event.get("event") == "heartbeat":
                 set_last_heartbeat_ts(time.time())
 
-            # -----------------------------------------------------
             # Update latest_line for arduino_stream()
-            # -----------------------------------------------------
             set_latest_line(line)
 
         except Exception as e:
@@ -101,14 +84,11 @@ def arduino_reader_thread():
             except Exception:
                 pass
 
-            set_serial_handle(None)
+            ser = None
             time.sleep(RECONNECT_BACKOFF)
 
 
 def _check_heartbeat():
-    """
-    Check if heartbeat is overdue and mark ministry as degraded.
-    """
     ts = last_heartbeat_ts()
     if ts is None:
         return

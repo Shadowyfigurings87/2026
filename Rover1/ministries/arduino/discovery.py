@@ -2,6 +2,7 @@
 
 import glob
 import time
+import os
 import serial
 
 BAUD_RATE = 9600
@@ -9,11 +10,14 @@ BAUD_RATE = 9600
 
 def find_working_serial_port(baud: int = BAUD_RATE, timeout: float = 0.1):
     """
-    Robust Arduino port discovery:
-      1. Prefer stable /dev/serial/by-id paths.
-      2. Fall back to ACM/USB enumeration.
-      3. Accept ACM ports even if silent (Mega resets on open).
+    Sovereign-grade Arduino port discovery:
+
+      1. Prefer stable /dev/serial/by-id paths (best, deterministic).
+      2. Resolve symlinks to reveal the actual ACM/USB device.
+      3. Fall back to enumerating /dev/ttyACM* and /dev/ttyUSB*.
       4. Validate ASCII output when possible.
+      5. Accept silent ACM ports (Mega resets on open).
+      6. Log every decision for cockpit visibility.
 
     Returns:
         str | None
@@ -24,13 +28,21 @@ def find_working_serial_port(baud: int = BAUD_RATE, timeout: float = 0.1):
     # ---------------------------------------------------------
     by_id = sorted(glob.glob("/dev/serial/by-id/*Arduino*"))
     if by_id:
-        print(f"[Arduino] Using stable by-id path: {by_id[0]}")
-        return by_id[0]
+        symlink = by_id[0]
+        resolved = os.path.realpath(symlink)
+        print(f"[Arduino] Using stable by-id path: {symlink} -> {resolved}")
+        return resolved
 
     # ---------------------------------------------------------
     # 2. Fallback: ACM/USB enumeration
     # ---------------------------------------------------------
     candidates = sorted(glob.glob("/dev/ttyACM*")) or sorted(glob.glob("/dev/ttyUSB*"))
+
+    if not candidates:
+        print("[Arduino] No ACM/USB serial devices detected.")
+        return None
+
+    print(f"[Arduino] Scanning candidates: {candidates}")
 
     for port in candidates:
         try:
@@ -54,7 +66,7 @@ def find_working_serial_port(baud: int = BAUD_RATE, timeout: float = 0.1):
 
             # Accept ACM ports even if silent
             if port.startswith("/dev/ttyACM"):
-                print(f"[Arduino] Accepting ACM port without ASCII: {port}")
+                print(f"[Arduino] Accepting silent ACM port: {port}")
                 test.close()
                 return port
 
