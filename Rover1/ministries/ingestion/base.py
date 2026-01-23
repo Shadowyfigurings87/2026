@@ -25,6 +25,19 @@ from redrover_link.tcp_server import redrover_queue
 
 
 def merged_stream():
+    """
+    Unified ingestion generator:
+      - Arduino ministry events
+      - RedRover events
+      - Heartbeat events
+      - Watchdog events
+      - Arduino ministry metrics
+      - Queue pressure monitoring
+
+    This is the single source of truth for the uplink ministry.
+    """
+
+    # Initial startup event
     yield {
         "ministry": "system",
         "event": "startup",
@@ -32,11 +45,13 @@ def merged_stream():
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 
+    # Initialize generators
     arduino_gen = arduino_ingest_stream()
     redrover_gen = redrover_stream()
     hb_gen = heartbeat_stream(interval=5)
     wd_gen = watchdog_stream(check_interval=3)
 
+    # Jitter smoothers per ministry
     smoothers = {
         "arduino": JitterSmoother(),
         "redrover": JitterSmoother(),
@@ -50,7 +65,9 @@ def merged_stream():
     while True:
         now = time.time()
 
-        # Arduino
+        # ---------------------------------------------------------
+        # Arduino telemetry
+        # ---------------------------------------------------------
         for _ in range(WEIGHTS["arduino"]):
             try:
                 obj = next(arduino_gen)
@@ -61,7 +78,9 @@ def merged_stream():
             except Exception:
                 break
 
-        # Arduino metrics
+        # ---------------------------------------------------------
+        # Arduino ministry metrics
+        # ---------------------------------------------------------
         if now - last_arduino_metrics_emit > ARDUINO_METRICS_INTERVAL:
             try:
                 metrics = get_arduino_metrics()
@@ -73,9 +92,12 @@ def merged_stream():
                 log_health("arduino_metrics", metrics)
             except Exception:
                 pass
+
             last_arduino_metrics_emit = now
 
-        # RedRover
+        # ---------------------------------------------------------
+        # RedRover telemetry
+        # ---------------------------------------------------------
         for _ in range(WEIGHTS["redrover"]):
             try:
                 obj = next(redrover_gen)
@@ -87,7 +109,9 @@ def merged_stream():
             except Exception:
                 break
 
-        # Heartbeat
+        # ---------------------------------------------------------
+        # Heartbeat events
+        # ---------------------------------------------------------
         for _ in range(WEIGHTS["heartbeat"]):
             try:
                 obj = next(hb_gen)
@@ -98,7 +122,9 @@ def merged_stream():
             except Exception:
                 break
 
-        # Watchdog
+        # ---------------------------------------------------------
+        # Watchdog events
+        # ---------------------------------------------------------
         for _ in range(WEIGHTS["watchdog"]):
             try:
                 obj = next(wd_gen)
@@ -109,4 +135,7 @@ def merged_stream():
             except Exception:
                 break
 
+        # ---------------------------------------------------------
+        # Loop pacing
+        # ---------------------------------------------------------
         time.sleep(0.001)

@@ -5,8 +5,8 @@ import time
 
 from ministries.arduino.service import start_arduino_ministry
 from ministries.camera.camera_ministry import start_camera_ministry
+from ministries.ingestion.base import merged_stream
 from ministries.network.uplink import send_unified_uplink
-from ministries.ingestion.base  import merged_stream
 
 # Telemetry tunnel (ngrok A)
 TELEMETRY_HOST = "0.tcp.ngrok.io"
@@ -18,43 +18,56 @@ def main():
     print(" [Rover1] Boot Sequence Start ")
     print("==============================\n")
 
-    # Arduino ministry
-    print("[Rover1] Initializing Arduino ministry…")
-    try:
-        start_arduino_ministry()
-        print("[Rover1] Arduino ministry started successfully")
-    except Exception as e:
-        print(f"[Rover1] ERROR: Arduino ministry failed to start: {e}")
+    # ---------------------------------------------------------
+    # 1. Arduino Ministry
+    # ---------------------------------------------------------
+    print("[Rover1] Starting Arduino ministry…")
+    threading.Thread(
+        target=start_arduino_ministry,
+        daemon=True,
+        name="ArduinoMinistry"
+    ).start()
 
-    # Camera ministry (self-contained)
-    print("\n[Rover1] Initializing Camera ministry (self-contained)…")
-    try:
-        start_camera_ministry()
-        print("[Rover1] Camera ministry started successfully")
-    except Exception as e:
-        print(f"[Rover1] ERROR: Camera ministry failed to start: {e}")
+    # ---------------------------------------------------------
+    # 2. Camera Ministry
+    # ---------------------------------------------------------
+    print("[Rover1] Starting Camera ministry…")
+    threading.Thread(
+        target=start_camera_ministry,
+        daemon=True,
+        name="CameraMinistry"
+    ).start()
 
-    # Telemetry uplink
-    print(f"\n[Rover1] Starting Telemetry uplink → {TELEMETRY_HOST}:{TELEMETRY_PORT}")
-    print("[Rover1] Telemetry generator initializing…")
+    # ---------------------------------------------------------
+    # 3. Ingestion Ministry (merged_stream generator)
+    # ---------------------------------------------------------
+    print("[Rover1] Initializing ingestion (merged_stream)…")
     try:
-        tg = merged_stream()
-        print("[Rover1] Telemetry generator ready")
+        telemetry_gen = merged_stream()
+        print("[Rover1] Ingestion ministry ready")
     except Exception as e:
-        print(f"[Rover1] ERROR: Failed to create telemetry generator: {e}")
-        tg = None
+        print(f"[Rover1] ERROR: Failed to initialize ingestion: {e}")
+        telemetry_gen = None
 
-    print("[Rover1] Entering unified telemetry uplink loop…")
-    try:
-        send_unified_uplink(
-            host=TELEMETRY_HOST,
-            port=TELEMETRY_PORT,
-            telemetry_generator=tg,
-        )
-    except Exception as e:
-        print(f"[Rover1] ERROR: Telemetry uplink crashed: {e}")
+    # ---------------------------------------------------------
+    # 4. Uplink Ministry
+    # ---------------------------------------------------------
+    print(f"[Rover1] Starting uplink → {TELEMETRY_HOST}:{TELEMETRY_PORT}")
+    threading.Thread(
+        target=send_unified_uplink,
+        args=(TELEMETRY_HOST, TELEMETRY_PORT, telemetry_gen),
+        daemon=True,
+        name="UplinkMinistry"
+    ).start()
 
-    print("\n[Rover1] MAIN LOOP EXITED — this should never happen\n")
+    print("\n[Rover1] All ministries launched. Entering heartbeat loop.\n")
+
+    # ---------------------------------------------------------
+    # 5. Main heartbeat loop (never exits)
+    # ---------------------------------------------------------
+    while True:
+        print("[Rover1] heartbeat")
+        time.sleep(5)
 
 
 if __name__ == "__main__":

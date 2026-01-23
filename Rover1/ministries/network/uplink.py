@@ -24,29 +24,30 @@ def _command_listener(sock):
     sock.settimeout(5)
 
     try:
-        with sock, sock.makefile("r") as f:
-            while True:
-                try:
-                    line = f.readline()
-                    if not line:
-                        print("[Uplink] Listener: host closed connection")
-                        break
+        f = sock.makefile("r")
 
-                    packet = safe_parse(line)
-                    if not packet:
-                        continue
+        while True:
+            try:
+                line = f.readline()
+                if not line:
+                    print("[Uplink] Listener: host closed connection")
+                    break
 
-                    try:
-                        handle_command_packet(packet)
-                    except Exception as e:
-                        print(f"[Uplink] Command handling error: {e}")
-
-                except socket.timeout:
+                packet = safe_parse(line)
+                if not packet:
                     continue
 
+                try:
+                    handle_command_packet(packet)
                 except Exception as e:
-                    print(f"[Uplink] Listener fatal error: {e}")
-                    break
+                    print(f"[Uplink] Command handling error: {e}")
+
+            except socket.timeout:
+                continue
+
+            except Exception as e:
+                print(f"[Uplink] Listener fatal error: {e}")
+                break
 
     except Exception as e:
         print(f"[Uplink] Listener outer error: {e}")
@@ -67,6 +68,10 @@ def send_unified_uplink(
       - Telemetry up (from ingestion ministry)
       - Timeout-safe listener
     """
+
+    if telemetry_generator is None:
+        print("[Uplink] ERROR: telemetry_generator is None — cannot start uplink")
+        return
 
     while True:
         sock = None
@@ -91,32 +96,34 @@ def send_unified_uplink(
             last_send = time.time()
             gen = telemetry_generator
 
-            with sock:
-                for obj in gen:
-                    now = time.time()
+            # Main uplink loop
+            while True:
+                obj = next(gen)
 
-                    # Heartbeat if quiet
-                    if now - last_send > heartbeat_interval:
-                        hb = heartbeat_packet()
-                        print("[Uplink → Host]", hb.strip())
-                        if not safe_send(sock, hb.encode("utf-8")):
-                            print("[Uplink] Heartbeat blocked — reconnecting")
-                            break
-                        last_send = now
+                now = time.time()
 
-                    # Build telemetry packet
-                    line = telemetry_packet(obj)
-                    payload = line.encode("utf-8")
-
-                    ok = safe_send(sock, payload)
-                    if not ok:
-                        print("[Uplink] Telemetry send blocked — reconnecting")
+                # Heartbeat if quiet
+                if now - last_send > heartbeat_interval:
+                    hb = heartbeat_packet()
+                    print("[Uplink → Host]", hb.strip())
+                    if not safe_send(sock, hb.encode("utf-8")):
+                        print("[Uplink] Heartbeat blocked — reconnecting")
                         break
-
                     last_send = now
-                    print("[Uplink → Host]", line.strip())
 
-            print(f"[Uplink] Socket closed, reconnecting in {reconnect_delay}s")
+                # Build telemetry packet
+                line = telemetry_packet(obj)
+                payload = line.encode("utf-8")
+
+                ok = safe_send(sock, payload)
+                if not ok:
+                    print("[Uplink] Telemetry send blocked — reconnecting")
+                    break
+
+                last_send = now
+                print("[Uplink → Host]", line.strip())
+
+            print(f"[Uplink] Socket closed or blocked, reconnecting in {reconnect_delay}s")
 
         except Exception as e:
             print(f"[Uplink] Error: {e}, reconnecting in {reconnect_delay}s")
