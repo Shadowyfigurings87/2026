@@ -15,7 +15,7 @@ from .config import (
 from .camera_backend import get_camera
 from .encoder import encode_jpeg
 from .buffer import FrameBuffer
-from .mjpeg_client import send_mjpeg_stream
+from .mjpeg_client import send_mjpeg_stream   # same name, new raw protocol
 
 
 _buffer = FrameBuffer(size=3)
@@ -108,8 +108,8 @@ def _run_camera_ministry():
     ).start()
     print("[CameraMinistry] Capture thread started")
 
-    # Start MJPEG uplink
-    print("[CameraMinistry] Launching MJPEG uplink client…")
+    # Start RAW uplink (same function name)
+    print("[CameraMinistry] Launching RAW uplink client…")
     send_mjpeg_stream(
         host=HOST,
         port=PORT,
