@@ -2,7 +2,7 @@
 
 import time
 
-from .state import (
+from ministries.arduino.state import (
     set_last_heartbeat_ts,
     set_last_ack,
     last_command_ts,

@@ -3,8 +3,8 @@
 import time
 import serial
 
-from .discovery import find_working_serial_port
-from .state import metrics
+from ministries.arduino.discovery import find_working_serial_port
+from ministries.arduino.state import metrics
 
 BAUD_RATE = 9600
 

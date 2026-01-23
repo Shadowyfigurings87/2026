@@ -3,15 +3,14 @@
 import time
 import serial
 
-from .state import (
+from ministries.arduino.state import (
     set_latest_line,
     metrics,
     last_heartbeat_ts,
     set_last_heartbeat_ts,
 )
-from .serial_link import open_serial_port
-from .parser import parse_line
-
+from ministries.arduino.serial_link import open_serial_port
+from ministries.arduino.parser import parse_line
 
 HEARTBEAT_TIMEOUT = 2.0
 RECONNECT_BACKOFF = 2.0
@@ -34,6 +33,10 @@ def arduino_reader_thread():
 
                 ser = open_serial_port()
                 print("[Arduino] Serial port opened successfully")
+
+                # Mark Arduino ministry as ready
+                from ministries.arduino.service import mark_arduino_ready
+                mark_arduino_ready()
 
             except Exception as e:
                 metrics["error_count"] += 1

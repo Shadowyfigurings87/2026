@@ -3,10 +3,10 @@
 import threading
 import time
 
-from ministries.arduino.service import start_arduino_ministry
-from ministries.camera.camera_ministry import start_camera_ministry
-from ministries.ingestion.base import merged_stream
-from ministries.network.uplink import send_unified_uplink
+from Rover1.ministries.arduino.service import start_arduino_ministry, arduino_ready
+from Rover1.ministries.camera.camera_ministry import start_camera_ministry
+from Rover1.ministries.ingestion.base import merged_stream
+from Rover1.ministries.network.uplink import send_unified_uplink
 
 # Telemetry tunnel (ngrok A)
 TELEMETRY_HOST = "0.tcp.ngrok.io"
@@ -25,8 +25,16 @@ def main():
     threading.Thread(
         target=start_arduino_ministry,
         daemon=True,
-        name="ArduinoMinistry"
+        name="ArduinoMinistry",
     ).start()
+
+    # ---------------------------------------------------------
+    # WAIT FOR ARDUINO MINISTRY TO INITIALIZE
+    # ---------------------------------------------------------
+    print("[Rover1] Waiting for Arduino ministry to become ready…")
+    while not arduino_ready:
+        time.sleep(0.1)
+    print("[Rover1] Arduino ministry is ready")
 
     # ---------------------------------------------------------
     # 2. Camera Ministry
@@ -35,7 +43,7 @@ def main():
     threading.Thread(
         target=start_camera_ministry,
         daemon=True,
-        name="CameraMinistry"
+        name="CameraMinistry",
     ).start()
 
     # ---------------------------------------------------------
@@ -57,7 +65,7 @@ def main():
         target=send_unified_uplink,
         args=(TELEMETRY_HOST, TELEMETRY_PORT, telemetry_gen),
         daemon=True,
-        name="UplinkMinistry"
+        name="UplinkMinistry",
     ).start()
 
     print("\n[Rover1] All ministries launched. Entering heartbeat loop.\n")

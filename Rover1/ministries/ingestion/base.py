@@ -1,4 +1,4 @@
-# ingestion/base.py
+# ministries/ingestion/base.py
 
 import time
 from datetime import datetime
@@ -24,6 +24,13 @@ from ministries.ingestion.config import (
 from redrover_link.tcp_server import redrover_queue
 
 
+print(f"[Ingestion] base.py loaded from: {__file__}")
+
+
+def _iso_now():
+    return datetime.utcnow().isoformat() + "Z"
+
+
 def merged_stream():
     """
     Unified ingestion generator:
@@ -38,12 +45,14 @@ def merged_stream():
     """
 
     # Initial startup event
-    yield {
+    startup_evt = {
         "ministry": "system",
         "event": "startup",
         "ts": time.time(),
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": _iso_now(),
     }
+    print("[Ingestion] Emitting startup event:", startup_evt)
+    yield startup_evt
 
     # Initialize generators
     arduino_gen = arduino_ingest_stream()
@@ -71,12 +80,21 @@ def merged_stream():
         for _ in range(WEIGHTS["arduino"]):
             try:
                 obj = next(arduino_gen)
-                obj = ensure_ministry(obj, "arduino")
-                obj["ts"] = smoothers["arduino"].smooth(obj.get("ts", now))
-                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
-                yield obj
-            except Exception:
+            except StopIteration:
+                print("[Ingestion] Arduino generator exhausted")
                 break
+            except Exception as e:
+                print(f"[Ingestion] Arduino generator exception: {e}")
+                break
+
+            if obj is None:
+                continue
+
+            obj = ensure_ministry(obj, "arduino")
+            obj["ts"] = smoothers["arduino"].smooth(obj.get("ts", now))
+            obj["timestamp"] = _iso_now()
+            print("[Ingestion] Arduino event:", obj)
+            yield obj
 
         # ---------------------------------------------------------
         # Arduino ministry metrics
@@ -87,11 +105,12 @@ def merged_stream():
                 metrics = ensure_ministry(metrics, "arduino")
                 metrics["event"] = "ministry_metrics"
                 metrics["ts"] = smoothers["arduino"].smooth(metrics.get("ts", now))
-                metrics["timestamp"] = datetime.utcnow().isoformat() + "Z"
+                metrics["timestamp"] = _iso_now()
+                print("[Ingestion] Arduino metrics:", metrics)
                 yield metrics
                 log_health("arduino_metrics", metrics)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[Ingestion] Arduino metrics error: {e}")
 
             last_arduino_metrics_emit = now
 
@@ -101,13 +120,49 @@ def merged_stream():
         for _ in range(WEIGHTS["redrover"]):
             try:
                 obj = next(redrover_gen)
-                obj = ensure_ministry(obj, "redrover")
-                obj["ts"] = smoothers["redrover"].smooth(obj.get("ts", now))
-                obj["_queue_pressure"] = redrover_queue.qsize()
-                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
-                yield obj
-            except Exception:
+            except StopIteration:
+                # RedRover stream might be finite or idle; keep quiet here
                 break
+            except Exception as e:
+                print(f"[Ingestion] RedRover generator exception: {e}")
+                break
+
+            if obj is None:
+                continue
+
+            obj = ensure_ministry(obj, "redrover")
+            obj["ts"] = smoothers["redrover"].smooth(obj.get("ts", now))
+            try:
+                obj["_queue_pressure"] = redrover_queue.qsize()
+            except Exception:
+                obj["_queue_pressure"] = None
+            obj["timestamp"] = _iso_now()
+            print("[Ingestion] RedRover event:", obj)
+            yield obj
+
+        # ---------------------------------------------------------
+        # Queue pressure logging (global)
+        # ---------------------------------------------------------
+        if now - last_pressure_log > PRESSURE_LOG_INTERVAL:
+            try:
+                qsize = redrover_queue.qsize()
+            except Exception:
+                qsize = None
+
+            if qsize is not None:
+                if qsize > CRITICAL_PRESSURE_THRESHOLD:
+                    level = "CRITICAL"
+                elif qsize > HIGH_PRESSURE_THRESHOLD:
+                    level = "HIGH"
+                else:
+                    level = "NORMAL"
+
+                print(
+                    f"[Ingestion] Queue pressure: size={qsize} level={level} "
+                    f"(HIGH={HIGH_PRESSURE_THRESHOLD}, CRITICAL={CRITICAL_PRESSURE_THRESHOLD})"
+                )
+
+            last_pressure_log = now
 
         # ---------------------------------------------------------
         # Heartbeat events
@@ -115,12 +170,21 @@ def merged_stream():
         for _ in range(WEIGHTS["heartbeat"]):
             try:
                 obj = next(hb_gen)
-                obj = ensure_ministry(obj, "heartbeat")
-                obj["ts"] = smoothers["heartbeat"].smooth(obj.get("ts", now))
-                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
-                yield obj
-            except Exception:
+            except StopIteration:
+                print("[Ingestion] Heartbeat generator exhausted")
                 break
+            except Exception as e:
+                print(f"[Ingestion] Heartbeat generator exception: {e}")
+                break
+
+            if obj is None:
+                continue
+
+            obj = ensure_ministry(obj, "heartbeat")
+            obj["ts"] = smoothers["heartbeat"].smooth(obj.get("ts", now))
+            obj["timestamp"] = _iso_now()
+            print("[Ingestion] Heartbeat event:", obj)
+            yield obj
 
         # ---------------------------------------------------------
         # Watchdog events
@@ -128,12 +192,21 @@ def merged_stream():
         for _ in range(WEIGHTS["watchdog"]):
             try:
                 obj = next(wd_gen)
-                obj = ensure_ministry(obj, "watchdog")
-                obj["ts"] = smoothers["watchdog"].smooth(obj.get("ts", now))
-                obj["timestamp"] = datetime.utcnow().isoformat() + "Z"
-                yield obj
-            except Exception:
+            except StopIteration:
+                print("[Ingestion] Watchdog generator exhausted")
                 break
+            except Exception as e:
+                print(f"[Ingestion] Watchdog generator exception: {e}")
+                break
+
+            if obj is None:
+                continue
+
+            obj = ensure_ministry(obj, "watchdog")
+            obj["ts"] = smoothers["watchdog"].smooth(obj.get("ts", now))
+            obj["timestamp"] = _iso_now()
+            print("[Ingestion] Watchdog event:", obj)
+            yield obj
 
         # ---------------------------------------------------------
         # Loop pacing
