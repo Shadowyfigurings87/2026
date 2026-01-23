@@ -4,10 +4,10 @@ import threading
 import time
 import socket
 
-from ministries.utils.jsonl import safe_parse
-from ministries.control.motor import handle_command_packet
+from Rover1.ministries.utils.jsonl import safe_parse
+from Rover1.ministries.control.motor import handle_command_packet
 
-from .connection import connect_with_retry, safe_send
+from Rover1.ministries.network.connection import connect_with_retry, safe_send
 from .packet_builder import (
     handshake_packet,
     heartbeat_packet,

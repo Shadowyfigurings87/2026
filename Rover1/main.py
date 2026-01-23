@@ -3,7 +3,9 @@
 import threading
 import time
 
-from Rover1.ministries.arduino.service import start_arduino_ministry, arduino_ready
+from Rover1.ministries.network.redrover_server import start_redrover_server
+from Rover1.ministries.arduino.service import start_arduino_ministry
+from Rover1.ministries.arduino import state
 from Rover1.ministries.camera.camera_ministry import start_camera_ministry
 from Rover1.ministries.ingestion.base import merged_stream
 from Rover1.ministries.network.uplink import send_unified_uplink
@@ -32,7 +34,7 @@ def main():
     # WAIT FOR ARDUINO MINISTRY TO INITIALIZE
     # ---------------------------------------------------------
     print("[Rover1] Waiting for Arduino ministry to become ready…")
-    while not arduino_ready:
+    while not state.arduino_ready:
         time.sleep(0.1)
     print("[Rover1] Arduino ministry is ready")
 
@@ -46,6 +48,13 @@ def main():
         name="CameraMinistry",
     ).start()
 
+    print("[Rover1] Starting RedRoverLink server…")
+    threading.Thread(
+        target=start_redrover_server,
+        daemon=True,
+        name="RedRoverLink",
+    ).start()
+	
     # ---------------------------------------------------------
     # 3. Ingestion Ministry (merged_stream generator)
     # ---------------------------------------------------------

@@ -3,7 +3,7 @@
 import threading
 import time
 
-from .config import (
+from Rover1.ministries.camera.config import (
     RESOLUTION,
     QUALITY,
     FPS,
@@ -12,10 +12,10 @@ from .config import (
     PORT,
     CONNECT_RETRY_DELAY,
 )
-from .camera_backend import get_camera
-from .encoder import encode_jpeg
-from .buffer import FrameBuffer
-from .mjpeg_client import send_mjpeg_stream   # same name, new raw protocol
+from Rover1.ministries.camera.camera_backend import get_camera
+from Rover1.ministries.camera.encoder import encode_jpeg
+from Rover1.ministries.camera.buffer import FrameBuffer
+from Rover1.ministries.camera.mjpeg_client import send_mjpeg_stream   # same name, new raw protocol
 
 
 _buffer = FrameBuffer(size=3)

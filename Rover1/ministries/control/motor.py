@@ -1,4 +1,7 @@
-from arduino import write_to_arduino
+# Rover1/ministries/control/motor.py
+
+from Rover1.ministries.arduino.commands import send_arduino_command
+
 
 # ---------------------------------------------------------
 # Entry point for host → Rover1 commands
@@ -46,7 +49,7 @@ def _handle_actuator(packet):
         return
 
     print(f"[Motor] → Arduino: {cmd}")
-    write_to_arduino(cmd)
+    send_arduino_command(cmd)
 
 
 # ---------------------------------------------------------
@@ -58,7 +61,7 @@ def _handle_pwm(packet):
 
     cmd = f"PWM:{value}"
     print(f"[Motor] → Arduino: {cmd}")
-    write_to_arduino(cmd)
+    send_arduino_command(cmd)
 
 
 # ---------------------------------------------------------
@@ -76,4 +79,5 @@ def _handle_direction(packet):
         return
 
     print(f"[Motor] → Arduino: {cmd}")
-    write_to_arduino(cmd)
+    send_arduino_command(cmd)
+

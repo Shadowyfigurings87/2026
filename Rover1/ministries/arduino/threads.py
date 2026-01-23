@@ -3,14 +3,14 @@
 import time
 import serial
 
-from ministries.arduino.state import (
+from Rover1.ministries.arduino.state import (
     set_latest_line,
     metrics,
     last_heartbeat_ts,
     set_last_heartbeat_ts,
 )
-from ministries.arduino.serial_link import open_serial_port
-from ministries.arduino.parser import parse_line
+from Rover1.ministries.arduino.serial_link import open_serial_port
+from Rover1.ministries.arduino.parser import parse_line
 
 HEARTBEAT_TIMEOUT = 2.0
 RECONNECT_BACKOFF = 2.0
@@ -35,8 +35,8 @@ def arduino_reader_thread():
                 print("[Arduino] Serial port opened successfully")
 
                 # Mark Arduino ministry as ready
-                from ministries.arduino.service import mark_arduino_ready
-                mark_arduino_ready()
+                from Rover1.ministries.arduino.state import set_arduino_ready
+                set_arduino_ready()
 
             except Exception as e:
                 metrics["error_count"] += 1

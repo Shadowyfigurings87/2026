@@ -3,6 +3,12 @@
 import threading
 import time
 
+arduino_ready = False
+
+def set_arduino_ready():
+    global arduino_ready
+    arduino_ready = True
+
 # ---------------------------------------------------------
 # Serial handle + lock
 # ---------------------------------------------------------

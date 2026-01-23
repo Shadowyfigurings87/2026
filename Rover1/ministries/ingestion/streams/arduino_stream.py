@@ -4,7 +4,7 @@ import threading
 import queue
 import time
 
-from ministries.arduino.service import arduino_stream
+from Rover1.ministries.arduino.service import arduino_stream
 
 # Internal queue for Arduino events
 _arduino_queue = queue.Queue(maxsize=1000)

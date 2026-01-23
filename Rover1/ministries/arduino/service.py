@@ -3,21 +3,16 @@
 import threading
 import time
 
-from ministries.arduino.threads import arduino_reader_thread
-from ministries.arduino import state
-from ministries.arduino.parser import parse_line
+from Rover1.ministries.arduino.threads import arduino_reader_thread
+from Rover1.ministries.arduino import state
+from Rover1.ministries.arduino.parser import parse_line
 
 print(f"[Arduino] service.py loaded from: {__file__}")
 
 # ---------------------------------------------------------
 # Readiness flag (set by threads.py when serial opens)
 # ---------------------------------------------------------
-arduino_ready = False
-
-def mark_arduino_ready():
-    global arduino_ready
-    arduino_ready = True
-
+from Rover1.ministries.arduino import state
 
 def start_arduino_ministry():
     print("[Arduino] Starting ministry… launching reader thread")

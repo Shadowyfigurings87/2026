@@ -3,17 +3,17 @@
 import time
 from datetime import datetime
 
-from ministries.ingestion.streams.arduino_stream import arduino_ingest_stream
-from ministries.ingestion.streams.redrover_stream import redrover_stream
-from ministries.ingestion.streams.heartbeat_stream import heartbeat_stream
-from ministries.ingestion.streams.watchdog_stream import watchdog_stream
+from Rover1.ministries.ingestion.streams.arduino_stream import arduino_ingest_stream
+from Rover1.ministries.ingestion.streams.redrover_stream import redrover_stream
+from Rover1.ministries.ingestion.streams.heartbeat_stream import heartbeat_stream
+from Rover1.ministries.ingestion.streams.watchdog_stream import watchdog_stream
 
-from ministries.ingestion.utils.jitter import JitterSmoother
-from ministries.ingestion.utils.ministry import ensure_ministry
-from ministries.ingestion.utils.health_logger import log_health
+from Rover1.ministries.ingestion.utils.jitter import JitterSmoother
+from Rover1.ministries.ingestion.utils.ministry import ensure_ministry
+from Rover1.ministries.ingestion.utils.health_logger import log_health
 
-from ministries.ingestion.metrics.arduino_metrics import get_arduino_metrics
-from ministries.ingestion.config import (
+from Rover1.ministries.ingestion.metrics.arduino_metrics import get_arduino_metrics
+from Rover1.ministries.ingestion.config import (
     WEIGHTS,
     ARDUINO_METRICS_INTERVAL,
     PRESSURE_LOG_INTERVAL,
@@ -21,7 +21,7 @@ from ministries.ingestion.config import (
     CRITICAL_PRESSURE_THRESHOLD,
 )
 
-from redrover_link.tcp_server import redrover_queue
+from Rover1.redrover_link.tcp_server import redrover_queue
 
 
 print(f"[Ingestion] base.py loaded from: {__file__}")

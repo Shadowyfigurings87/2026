@@ -8,9 +8,9 @@
 
 import time
 
-from .camera_backend import get_camera
-from .encoder import encode_jpeg
-from .config import RESOLUTION, QUALITY, FPS, HEALTH_INTERVAL
+from Rover1.ministries.camera.camera_backend import get_camera
+from Rover1.ministries.camera.encoder import encode_jpeg
+from Rover1.ministries.config import RESOLUTION, QUALITY, FPS, HEALTH_INTERVAL
 
 
 def camera_frame_generator(
