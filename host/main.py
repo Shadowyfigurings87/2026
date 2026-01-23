@@ -1,38 +1,50 @@
-# Rover1/main.py
+# host/main.py
 
 import threading
+import time
 
-from ministries.arduino.service import start_arduino_ministry
-from ministries.camera.camera_ministry import start_camera_ministry
-from ministries.network.uplink import send_unified_uplink
-from ministries.ingestion.ingest import telemetry_generator
-
-# Telemetry tunnel (ngrok A)
-TELEMETRY_HOST = "8.tcp.ngrok.io"
-TELEMETRY_PORT = 19760
-
-# Camera tunnel (ngrok B)
-# These values come from ministries/camera/config.py
-# but you can override them here if needed.
-from ministries.camera.config import HOST as CAMERA_HOST, PORT as CAMERA_PORT
+from host.services.connect.server import start_ingestion_server
+from host.services.camera.server import start_camera_server
+from host.api_server import start_api_server
+from host.logs.wrappers import log_ingest
 
 
-def main():
-    print("[Rover1] Starting ministries...")
+def start_host():
+    print("\n==============================")
+    print("   HOST BACKEND STARTING…")
+    print("==============================\n")
 
-    # Arduino ministry (local)
-    start_arduino_ministry()
+    log_ingest("host_starting")
 
-    # Camera ministry (local capture + encoding + its own uplink)
-    start_camera_ministry()
+    # Ingestion ministry (port 5000)
+    print("[Host] Starting ingestion ministry on port 5000…")
+    threading.Thread(
+        target=start_ingestion_server,
+        daemon=True
+    ).start()
 
-    # Telemetry uplink (separate TCP client)
-    send_unified_uplink(
-        host=TELEMETRY_HOST,
-        port=TELEMETRY_PORT,
-        telemetry_generator=telemetry_generator(),
-    )
+    # Camera ministry (port 5001)
+    print("[Host] Starting camera ministry on port 5001…")
+    threading.Thread(
+        target=start_camera_server,
+        daemon=True
+    ).start()
+
+    # API ministry (port 8000)
+    print("[Host] Starting API ministry on port 8000…")
+    threading.Thread(
+        target=start_api_server,
+        daemon=True
+    ).start()
+
+    print("[Host] All ministries launched. Entering heartbeat loop.\n")
+    log_ingest("host_ministries_started")
+
+    # Keep host alive forever
+    while True:
+        time.sleep(5)
+        log_ingest("host_alive")
 
 
 if __name__ == "__main__":
-    main()
+    start_host()
