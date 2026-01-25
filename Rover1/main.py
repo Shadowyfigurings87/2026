@@ -11,8 +11,8 @@ from Rover1.ministries.ingestion.base import merged_stream
 from Rover1.ministries.network.uplink import send_unified_uplink
 
 # Telemetry tunnel (ngrok A)
-TELEMETRY_HOST = "4.tcp.ngrok.io"
-TELEMETRY_PORT = 17732
+TELEMETRY_HOST = "8.tcp.ngrok.io"
+TELEMETRY_PORT = 10214
 
 
 def main():
