@@ -1,9 +1,10 @@
-Layer	Ministry / Component	Role
-Hardware	Arduino, Camera	Raw signals, sensors, motion
-Rover Core	Arduino, Camera, Ingestion	Turn signals into structured telemetry
-Network	Uplink, Connection, Packets	Tunnel telemetry + commands
-Host	TCP server, DB, Dashboard	Persist, analyze, and visualize
-Control	Command router, Motor ctrl	Turn host intent into rover actions
+Layer                        Ministry / Component               Role
+-----------------------------------------------------------------------------------------
+Hardware                     Arduino, Camera                    Raw signals, sensors, motion
+Rover Core                   Arduino, Camera, Ingestion         Turn signals into structured telemetry
+Network                      Uplink, Connection, Packets        Tunnel telemetry + commands
+Host                         TCP server, DB, Dashboard          Persist, analyze, and visualize
+Control                      Command router, Motor ctrl         Turn host intent into rover actions
 [Arduino HW]
     │  (USB/serial)
     ▼
@@ -31,30 +32,28 @@ Control	Command router, Motor ctrl	Turn host intent into rover actions
     │  normalizes ministry + ts + timestamp
     ▼
 [ingestion.base.merged_stream()]
-[arduino_ingest_stream()]  ← Arduino ministry
-[redrover_stream()]        ← RF / rover link
-[heartbeat_stream()]       ← synthetic system heartbeat
-[watchdog_stream()]        ← internal health checks
-    │
-    ▼
+    ├─ [arduino_ingest_stream()]  ← Arduino ministry
+    ├─ [redrover_stream()]        ← RF / rover link
+    ├─ [heartbeat_stream()]       ← synthetic system heartbeat
+    └─ [watchdog_stream()]        ← internal health checks
+        │
+        ▼
 [merged_stream()]
     - jitter smoothing per ministry
     - ministry tagging
     - timestamp normalization
     - Arduino metrics emission
     - queue pressure annotation
-    ▼
+        ▼
 [unified telemetry generator] → passed to uplink
-[merged_stream()]  → generator of telemetry dicts
-    │
-    ▼
+        │
+        ▼
 [uplink.send_unified_uplink(host, port, telemetry_gen)]
     │
     ├─ handshake_packet()  (on connect)
     ├─ heartbeat_packet()  (on idle)
-    ├─ telemetry_packet()  (per event)
-    │
-    ▼
+    └─ telemetry_packet()  (per event)
+        ▼
 [connection.connect_with_retry()]
     │  TCP_NODELAY, retry loop
     ▼
@@ -67,40 +66,19 @@ Control	Command router, Motor ctrl	Turn host intent into rover actions
     │  handle_command_packet()
     ▼
 [motor / control ministries]
-[Host dashboard / operator]
-    │  sends command JSON
-    ▼
-[Host TCP server]
-    │  writes JSONL down tunnel
-    ▼
-[_command_listener() in uplink]
-    │  safe_parse()
-    ▼
-[handle_command_packet(packet)]
-    │  translates to Arduino command strings
-    ▼
-[arduino.commands.write_to_arduino(msg)]
-    │  serial write (thread-safe)
-    ▼
-[Arduino HW executes motion]
-    │
-    └─ emits ACK / TEL back into telemetry loop
-                 ┌────────────────────────────────────────────────────┐
-                 │                     HOST                           │
-                 │                                                    │
-                 │  [TCP Server]  ←─── JSONL ───  [Uplink Ministry]   │
-                 │      │                               ▲             │
-                 │      ▼                               │             │
-                 │  [Ingress Queue]                     │             │
-                 │      │                               │             │
-                 │      ├──→ [DB Writer]                │             │
-                 │      └──→ [Live Dashboard]           │             │
-                 │                                        Commands    │
-                 │  [Command API / UI] ─── JSONL ───────┘             │
-                 └────────────────────────────────────────────────────┘
-                                      ▲
-                                      │  ngrok TCP tunnel
-                                      ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                                   HOST                                     │
+│                                                                            │
+│  [TCP Server]  ←─── JSONL ───  [Uplink Ministry]                           │
+│      │                               ▲                                     │
+│      ▼                               │                                     │
+│  [Ingress Queue]                     │                                     │
+│      │                               │                                     │
+│      ├──→ [DB Writer]                │                                     │
+│      └──→ [Live Dashboard]           │                                     │
+│                                        Commands                            │
+│  [Command API / UI] ─── JSONL ───────┘                                     │
+└────────────────────────────────────────────────────────────────────────────┘
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                                ROVER1                                      │
 │                                                                            │

@@ -33,7 +33,6 @@ function createWindow(name, html) {
     // ===============================
     // SAFE HTML INSERTION (CRITICAL)
     // ===============================
-    // Use DOMParser to avoid browser sanitization of <img> and <script>
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
 
@@ -41,19 +40,42 @@ function createWindow(name, html) {
     content.append(...doc.body.childNodes);
 
     // ===============================
-    // SCRIPT LOADER (CRITICAL)
+    // SCRIPT LOADER (GUARANTEED EXECUTION)
     // ===============================
-    doc.querySelectorAll("script").forEach(oldScript => {
+    const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+    let match;
+
+    while ((match = scriptRegex.exec(html))) {
+        const scriptTag = match[0];
+        const srcMatch = scriptTag.match(/src="([^"]+)"/);
+
         const newScript = document.createElement("script");
 
-        if (oldScript.src) {
-            newScript.src = oldScript.src;
+        if (srcMatch) {
+            // External script
+            newScript.src = srcMatch[1] + "?v=" + Date.now(); // cache-bust
         } else {
-            newScript.textContent = oldScript.textContent;
+            // Inline script
+            newScript.textContent = match[1];
         }
 
         document.body.appendChild(newScript);
-    });
+    }
+
+
+    // ===============================
+    // PANEL INITIALIZERS
+    // ===============================
+    if (name === "telemetry") {
+        // Delay to allow telemetry.js to load and execute
+        setTimeout(() => {
+            if (typeof startTelemetryPanel === "function") {
+                startTelemetryPanel();
+            } else {
+                console.warn("Telemetry panel script not ready yet");
+            }
+        }, 50);
+    }
 
     document.getElementById("window-area").appendChild(win);
     makeDraggable(win);

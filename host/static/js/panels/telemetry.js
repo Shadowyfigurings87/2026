@@ -20,4 +20,8 @@ async function updateTelemetryPanel() {
     }
 }
 
-setInterval(updateTelemetryPanel, 500);
+// ⭐ THIS FUNCTION MUST EXIST ⭐
+function startTelemetryPanel() {
+    updateTelemetryPanel();          // run immediately
+    setInterval(updateTelemetryPanel, 500);   // then run every 500ms
+}

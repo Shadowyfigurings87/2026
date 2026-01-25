@@ -2,7 +2,7 @@
 
 import time
 from queue import Queue
-from datetime import datetime
+from datetime import datetime, timezone
 
 from host.logs.wrappers import log_ingest, log_rf
 from host.services.metrics import (
@@ -12,17 +12,21 @@ from host.services.metrics import (
     rf_frame_processing_seconds,
 )
 
-# NEW imports for Arduino decoding + DB upsert
-from host.services.arduino_decoder import decode_arduino_line
+# Arduino DB upsert
 from host.services.db_writer import upsert_arduino_state
 
 ingestion_queue: Queue = Queue()
 
 
+# ============================================================
+# RF MINISTRY
+# ============================================================
+
 def process_rf_frame(msg: dict):
     start = time.perf_counter()
     try:
         rf_frames_total.inc()
+
         log_rf(
             "rf_frame_received",
             rssi=msg.get("rssi"),
@@ -33,9 +37,14 @@ def process_rf_frame(msg: dict):
             bssid=msg.get("bssid"),
             queue_pressure=msg.get("_queue_pressure"),
         )
+
     finally:
         rf_frame_processing_seconds.observe(time.perf_counter() - start)
 
+
+# ============================================================
+# CAMERA MINISTRY
+# ============================================================
 
 def process_camera_frame(msg: dict):
     data = msg.get("data")
@@ -45,49 +54,105 @@ def process_camera_frame(msg: dict):
         log_ingest("camera_frame_ignored_non_bytes", payload=msg)
 
 
+# ============================================================
+# ARDUINO MINISTRY (TEL parser → arduino_state)
+# ============================================================
+
 def process_arduino_frame(msg: dict):
     """
-    Handles:
-      - Raw TEL: telemetry → decode + upsert arduino_state
-      - ministry_metrics → log only
+    Parses Arduino telemetry frames of the form:
+        TEL:RPM:0.0 THR:0.00 DIR:STOP PWM:0
+
+    Extracts rpm, throttle, direction, pwm and upserts into arduino_state.
     """
+
     event = msg.get("event")
 
-    # Metrics frames (from get_arduino_metrics)
+    # Metrics frames from the Arduino ministry
     if event == "ministry_metrics":
         log_ingest("arduino_metrics", payload=msg)
         return
 
-    # Raw telemetry frames
+    # Extract raw line
     raw_line = msg.get("raw") or msg.get("line") or msg.get("data")
     if not raw_line:
         log_ingest("arduino_frame_missing_raw", payload=msg)
         return
 
-    decoded = decode_arduino_line(raw_line)
-    if not decoded:
+    # Ensure TEL prefix
+    if not raw_line.startswith("TEL"):
         log_ingest("arduino_frame_unparsed", raw=raw_line, payload=msg)
         return
 
-    # Timestamp handling
-    ts_iso = msg.get("timestamp") or datetime.utcnow().isoformat() + "Z"
+    # Remove TEL prefix and split into key:value parts
+    parts = raw_line.replace("TEL:", "").strip().split()
 
-    # Upsert into arduino_state table
+    parsed = {}
+    for part in parts:
+        if ":" not in part:
+            continue
+
+        key, value = part.split(":", 1)
+        key = key.strip().lower()  # rpm, thr, dir, pwm
+        value = value.strip()
+
+        if key == "rpm":
+            try:
+                parsed["rpm"] = float(value)
+            except Exception:
+                parsed["rpm"] = None
+
+        elif key in ("thr", "throttle"):
+            try:
+                parsed["throttle"] = float(value)
+            except Exception:
+                parsed["throttle"] = None
+
+        elif key == "dir":
+            parsed["direction"] = value.upper()
+
+        elif key == "pwm":
+            try:
+                parsed["pwm"] = float(value)
+            except Exception:
+                parsed["pwm"] = None
+
+    # Ensure all fields exist
+    parsed.setdefault("rpm", None)
+    parsed.setdefault("throttle", None)
+    parsed.setdefault("direction", None)
+    parsed.setdefault("pwm", None)
+
+    # Timestamp
+    ts_iso = (
+        msg.get("timestamp")
+        or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    )
+
+    # Log parsed frame
+    log_ingest("arduino_frame_parsed", payload={
+        "raw": raw_line,
+        "parsed": parsed,
+    })
+
+    # Upsert into arduino_state
     upsert_arduino_state(
-        rpm=decoded.get("rpm", 0.0),
-        throttle=decoded.get("throttle", 0.0),
-        direction=decoded.get("direction", "UNKNOWN"),
-        pwm=decoded.get("pwm", 0),
+        rpm=parsed["rpm"],
+        throttle=parsed["throttle"],
+        direction=parsed["direction"],
+        pwm=parsed["pwm"],
         ts=ts_iso,
         raw={
             "timestamp": ts_iso,
             "raw": raw_line,
-            "decoded": decoded,
+            "decoded": parsed,
         },
     )
 
-    log_ingest("arduino_frame_decoded", decoded=decoded)
 
+# ============================================================
+# SYSTEM / REDROVER / HEARTBEAT / WATCHDOG
+# ============================================================
 
 def process_system_event(msg: dict):
     log_ingest("system_event", payload=msg)
@@ -98,18 +163,25 @@ def process_redrover_frame(msg: dict):
 
 
 def process_heartbeat(msg: dict):
-    log_ingest("heartbeat_stub", payload=msg)
+    log_ingest("heartbeat_event", payload=msg)
 
 
 def process_watchdog(msg: dict):
-    log_ingest("watchdog_stub", payload=msg)
+    log_ingest("watchdog_event", payload=msg)
 
+
+# ============================================================
+# WORKER LOOP
+# ============================================================
 
 def worker_loop():
     log_ingest("worker_loop_started")
+
     while True:
         msg = ingestion_queue.get()
         try:
+            ingest_total.inc()
+
             ministry = msg.get("ministry")
 
             if ministry == "alfa":

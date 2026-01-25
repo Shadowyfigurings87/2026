@@ -2,40 +2,31 @@
 
 def decode_arduino_line(line: str):
     """
-    Decodes a single Arduino telemetry line into structured fields.
-    Expected format:
-      TEL:RPM:<val> THR:<val> DIR:<FWD|REV|STOP> PWM:<0-255>
+    Expected format (example):
+        TEL rpm=1234 throttle=0.52 direction=FWD pwm=180
     """
-    if not line:
+
+    if not line or "TEL" not in line:
         return None
 
-    line = line.strip()
-    if not line.startswith("TEL:"):
-        return None
-
-    parts = line.split()
-    out = {}
+    parts = line.strip().split()
+    decoded = {}
 
     for p in parts:
-        if p.startswith("TEL:RPM:"):
-            try:
-                out["rpm"] = float(p.split(":")[2])
-            except Exception:
-                out["rpm"] = 0.0
+        if "=" not in p:
+            continue
 
-        elif p.startswith("THR:"):
-            try:
-                out["throttle"] = float(p.split(":")[1])
-            except Exception:
-                out["throttle"] = None
+        key, val = p.split("=", 1)
 
-        elif p.startswith("DIR:"):
-            out["direction"] = p.split(":")[1]
+        # Normalize keys
+        if key == "rpm":
+            decoded["rpm"] = float(val)
+        elif key in ("thr", "throttle"):
+            decoded["throttle"] = float(val)
+        elif key in ("dir", "direction"):
+            decoded["direction"] = val
+        elif key == "pwm":
+            decoded["pwm"] = float(val)
 
-        elif p.startswith("PWM:"):
-            try:
-                out["pwm"] = int(p.split(":")[1])
-            except Exception:
-                out["pwm"] = None
-
-    return out if out else None
+    # Must have at least one valid field
+    return decoded if decoded else None

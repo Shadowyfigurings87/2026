@@ -31,19 +31,34 @@ SCHEMA = [
     "CREATE INDEX IF NOT EXISTS idx_telemetry_ts ON telemetry_raw(ts);",
 
     # ---------------------------------------------------------
-    # Motor telemetry (Arduino)
+    # Decoded Arduino state (canonical 2026 table)
+    # Single row: id = 1
     # ---------------------------------------------------------
     """
-    CREATE TABLE IF NOT EXISTS motor_telemetry (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp_utc TEXT NOT NULL,
-        ts REAL NOT NULL,
+    CREATE TABLE IF NOT EXISTS arduino_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
         rpm REAL,
-        state TEXT,
-        pulse_interval REAL
+        throttle REAL,
+        direction TEXT,
+        pwm REAL,
+        ts TEXT,
+        raw JSON
     );
     """,
-    "CREATE INDEX IF NOT EXISTS idx_motor_ts ON motor_telemetry(ts);",
+
+    # ---------------------------------------------------------
+    # Decoded ESP32 state (canonical 2026 table)
+    # Single row: id = 1
+    # ---------------------------------------------------------
+    """
+    CREATE TABLE IF NOT EXISTS esp32_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        status TEXT,
+        queue_pressure REAL,
+        ts TEXT,
+        raw JSON
+    );
+    """,
 
     # ---------------------------------------------------------
     # Command log (Host → Rover1)
@@ -142,6 +157,10 @@ def main():
 
     for stmt in SCHEMA:
         cur.execute(stmt)
+
+    # Initialize single-row state tables
+    cur.execute("INSERT OR IGNORE INTO arduino_state (id) VALUES (1);")
+    cur.execute("INSERT OR IGNORE INTO esp32_state (id) VALUES (1);")
 
     conn.commit()
     conn.close()

@@ -1,0 +1,159 @@
+# Rover1 System Architecture — Print Edition
+
+**Project:** Rover1  
+**Operator:** Zachariah  
+**Stardate:** 2026.01.23  
+**Event:** Resurrection of the Unified Telemetry Spine
+
+---
+
+## 1. Layered Model
+
+| Layer       | Ministry / Component         | Role                                   |
+|-------------|------------------------------|-----------------------------------------|
+| Hardware    | Arduino, Camera              | Raw signals, sensors, motion            |
+| Rover Core  | Arduino, Camera, Ingestion   | Turn signals into structured telemetry  |
+| Network     | Uplink, Connection, Packets  | Tunnel telemetry + commands             |
+| Host        | TCP server, DB, Dashboard    | Persist, analyze, visualize             |
+| Control     | Command router, Motor ctrl   | Turn host intent into rover actions     |
+
+---
+
+## 2. Rover Telemetry Path
+
+1. **Arduino HW**  
+   - Connected via USB/serial to host on Rover1.
+
+2. **Serial Link**  
+   - `serial_link.open_serial_port()` opens the port with correct baud and options.
+
+3. **Reader Thread**  
+   - `threads.arduino_reader_thread()` continuously reads raw lines.  
+   - Updates `state.latest_line`.
+
+4. **Parser**  
+   - `parser.parse_line()` decodes:  
+     - `HB` (heartbeat)  
+     - `ACK` (command acknowledgements)  
+     - `TEL` (telemetry)  
+     - `RAW` (raw passthrough)  
+   - Updates heartbeat and ack state.
+
+5. **State**  
+   - Tracks:  
+     - `latest_line`  
+     - `metrics`  
+     - `last_command` / `last_ack`  
+     - `heartbeat_ts`.
+
+6. **Arduino Stream Service**  
+   - `service.arduino_stream()` watches `latest_line`.  
+   - Yields parsed event dicts.
+
+7. **Ingestion Streams**  
+   - `arduino_ingest_stream()` normalizes:  
+     - `ministry`  
+     - `ts`  
+     - `timestamp`.
+
+8. **Merged Stream**  
+   - `merged_stream()` combines:  
+     - `arduino_ingest_stream()`  
+     - `redrover_stream()`  
+     - `heartbeat_stream()`  
+     - `watchdog_stream()`  
+   - Responsibilities:  
+     - jitter smoothing per ministry  
+     - ministry tagging  
+     - timestamp normalization  
+     - Arduino metrics emission  
+     - queue pressure annotation.
+
+9. **Unified Telemetry Generator**  
+   - Output of `merged_stream()` passed to uplink.
+
+10. **Uplink**  
+    - `uplink.send_unified_uplink(host, port, telemetry_gen)`  
+    - Sends:  
+      - `handshake_packet()` on connect  
+      - `heartbeat_packet()` on idle  
+      - `telemetry_packet()` per event.
+
+11. **Connection**  
+    - `connection.connect_with_retry()`  
+    - Uses `TCP_NODELAY`, retry loop.
+
+12. **Tunnel**  
+    - ngrok TCP tunnel carries JSONL between Rover1 and Host.
+
+---
+
+## 3. Host Ingestion and Dashboard
+
+1. **Host TCP Server**  
+   - Accepts JSONL from uplink.
+
+2. **Ingress Queue**  
+   - All telemetry events are enqueued.
+
+3. **DB Writer Ministry**  
+   - Consumes queue.  
+   - Writes into `telemetry_raw`, `arduino_state`, and other tables.
+
+4. **Live Dashboard**  
+   - Reads from API.  
+   - Shows:  
+     - RPM  
+     - Throttle  
+     - Direction  
+     - PWM  
+     - System health.
+
+---
+
+## 4. Command Path (Host → Rover)
+
+1. **Host Dashboard / Operator**  
+   - Issues commands via UI.
+
+2. **Command API / TCP Server**  
+   - Encodes commands as JSONL.  
+   - Sends down the same tunnel.
+
+3. **Uplink Command Listener**  
+   - `_command_listener()` reads JSONL.  
+   - `safe_parse()` ensures valid JSON.  
+   - `handle_command_packet()` interprets commands.
+
+4. **Control / Motor Ministry**  
+   - Translates packets into Arduino command strings.
+
+5. **Arduino Command Writer**  
+   - `arduino.commands.write_to_arduino(msg)`  
+   - Thread‑safe serial write.
+
+6. **Arduino HW**  
+   - Executes motion.  
+   - Emits `ACK` / `TEL` back into the telemetry loop.
+
+---
+
+## 5. Ministries Summary
+
+- **Arduino Ministry**  
+  Serial, parser, metrics, command writer.
+
+- **Camera Ministry**  
+  Captures frames, sends to host camera server.
+
+- **Ingestion Ministry**  
+  Streams, merged_stream, telemetry generator.
+
+- **Uplink Ministry**  
+  Connection, packet builder, command listener.
+
+- **Control Ministry**  
+  Motor control, command translation.
+
+- **Host Ministries**  
+  TCP server, DB writer, API, dashboard.

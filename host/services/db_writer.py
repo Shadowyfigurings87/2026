@@ -16,54 +16,54 @@ from host.services.metrics import (
     db_write_latency_histogram,
 )
 
-DB_PATH = Path(__file__).resolve().parent.parent / "host.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "host.host.db"
 
 # Global write queue
 write_queue = queue.Queue()
 
 
+# ============================================================
+# INTERNAL: Initialize tables (safety net)
+# ============================================================
+
 def _init_tables(conn):
     """
-    Ensure required tables exist.
+    Safety net: ensures required tables exist.
+    Your init_db.py already creates them, but this prevents
+    runtime crashes if init_db wasn't run.
     """
     cur = conn.cursor()
 
-    # -------------------------------------------------------
-    # RAW TELEMETRY TABLE
-    # -------------------------------------------------------
+    # Raw telemetry archive
     cur.execute("""
         CREATE TABLE IF NOT EXISTS telemetry_raw (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp_utc TEXT,
-            ts REAL,
-            ministry TEXT,
-            payload TEXT
+            timestamp_utc TEXT NOT NULL,
+            ts REAL NOT NULL,
+            ministry TEXT NOT NULL,
+            payload TEXT NOT NULL
         )
     """)
 
-    # -------------------------------------------------------
-    # ESP32 STATE TABLE
-    # -------------------------------------------------------
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS esp32_state (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            status TEXT,
-            queue_pressure INTEGER,
-            ts TEXT,
-            raw TEXT
-        )
-    """)
-
-    # -------------------------------------------------------
-    # ARDUINO STATE TABLE (NEW)
-    # -------------------------------------------------------
+    # Arduino decoded state
     cur.execute("""
         CREATE TABLE IF NOT EXISTS arduino_state (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             rpm REAL,
             throttle REAL,
             direction TEXT,
-            pwm INTEGER,
+            pwm REAL,
+            ts TEXT,
+            raw TEXT
+        )
+    """)
+
+    # ESP32 decoded state
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS esp32_state (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            status TEXT,
+            queue_pressure REAL,
             ts TEXT,
             raw TEXT
         )
@@ -71,6 +71,10 @@ def _init_tables(conn):
 
     conn.commit()
 
+
+# ============================================================
+# DB WRITER THREAD
+# ============================================================
 
 def db_writer_thread():
     """
@@ -83,7 +87,6 @@ def db_writer_thread():
     conn.execute("PRAGMA busy_timeout=5000;")
 
     _init_tables(conn)
-
     cur = conn.cursor()
 
     while True:
@@ -114,13 +117,29 @@ def start_db_writer():
 
 
 # ============================================================
+# RAW TELEMETRY INSERT
+# ============================================================
+
+def write_raw_telemetry(timestamp_utc: str, ts: float, ministry: str, payload: dict):
+    """
+    Insert raw telemetry into telemetry_raw.
+    """
+    write_queue.put((
+        """
+        INSERT INTO telemetry_raw (timestamp_utc, ts, ministry, payload)
+        VALUES (?, ?, ?, ?)
+        """,
+        (timestamp_utc, ts, ministry, json.dumps(payload)),
+    ))
+
+
+# ============================================================
 # ESP32 UPSERT
 # ============================================================
 
-def upsert_esp32_state(status: str, queue_pressure: int | None, ts: str, raw: dict):
+def upsert_esp32_state(status: str, queue_pressure: float | None, ts: str, raw: dict):
     """
     Store the latest ESP32 state in a single-row table.
-    Uses INSERT OR REPLACE to maintain exactly one row.
     """
     write_queue.put((
         """
@@ -137,13 +156,12 @@ def upsert_esp32_state(status: str, queue_pressure: int | None, ts: str, raw: di
 
 
 # ============================================================
-# ARDUINO UPSERT (NEW)
+# ARDUINO UPSERT
 # ============================================================
 
-def upsert_arduino_state(rpm: float, throttle: float, direction: str, pwm: int, ts: str, raw: dict):
+def upsert_arduino_state(rpm: float, throttle: float, direction: str, pwm: float, ts: str, raw: dict):
     """
     Store the latest Arduino state in a single-row table.
-    Mirrors the ESP32 UPSERT pattern.
     """
     write_queue.put((
         """

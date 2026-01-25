@@ -3,10 +3,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from prometheus_client import make_asgi_app
 
-# NEW: import MJPEG route registration
+# MJPEG route registration
 from host.services.camera.mjpeg_router import register_routes
 
-# Import all routers
+# Routers
 from host.api.telemetry import router as telemetry_router
 from host.api.rf import router as rf_router
 from host.api.arduino import router as arduino_router
@@ -29,10 +29,7 @@ def create_api():
     # ---------------------------------------------------------
     # MINISTRY ROUTERS
     # ---------------------------------------------------------
-
-    # Telemetry router ALREADY has prefix="/telemetry"
     app.include_router(telemetry_router)
-
     app.include_router(rf_router, prefix="/rf", tags=["rf"])
     app.include_router(arduino_router, prefix="/arduino", tags=["arduino"])
     app.include_router(health_router, prefix="/health", tags=["health"])
@@ -42,7 +39,7 @@ def create_api():
     app.include_router(esp32_router, prefix="/esp32", tags=["esp32"])
 
     # ---------------------------------------------------------
-    # CAMERA MJPEG ENDPOINT (NEW)
+    # CAMERA MJPEG ENDPOINT
     # ---------------------------------------------------------
     register_routes(app)
 

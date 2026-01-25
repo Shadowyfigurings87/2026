@@ -4,22 +4,20 @@ import json
 import base64
 
 from host.logs.wrappers import log_ingest
-from host.services.db_writer import write_queue
 from host.services.metrics import (
     ingest_total,
     ingestion_queue_depth,
     update_rover_heartbeat,
 )
 
-from .worker import ingestion_queue
+from .worker import ingestion_queue, process_arduino_frame
 from .command_bus import set_rover_socket
-
-# Ministry handlers
 from host.services.connect.esp32_handler import handle_esp32_json
+from host.services.db_writer import write_queue
 
 
 # ============================================================
-# SANITIZER
+# SANITIZER — ensure DB-safe JSON
 # ============================================================
 
 def sanitize_for_json(obj: dict) -> dict:
@@ -49,23 +47,30 @@ def sanitize_for_json(obj: dict) -> dict:
 def route_ministry(obj, ministry):
     """
     Dispatch JSON payloads to the correct ministry handler.
+    This is where ministries perform immediate side-effects
+    (decoding, metrics, state updates).
     """
+    # ESP32 → metrics + state
     if ministry == "esp32":
         handle_esp32_json(obj)
         return
 
+    # Arduino → decode + upsert
     if ministry == "arduino":
-        log_ingest("arduino_frame_stub", payload=obj)
+        process_arduino_frame(obj)
         return
 
+    # RF → handled by worker (RF frames are raw)
     if ministry == "rf":
-        log_ingest("rf_frame_stub", payload=obj)
+        log_ingest("rf_frame_received_stub", payload=obj)
         return
 
+    # System events
     if ministry == "system":
         log_ingest("system_event", payload=obj)
         return
 
+    # Unknown
     log_ingest("ingest_unknown_ministry", payload=obj)
 
 
@@ -93,7 +98,7 @@ def handle_json_client(conn, addr):
                     log_ingest("json_decode_error", error=str(e), raw=line)
                     continue
 
-                # Update rover heartbeat
+                # Heartbeat
                 update_rover_heartbeat()
 
                 # Determine ministry
@@ -103,7 +108,7 @@ def handle_json_client(conn, addr):
                     or "unknown"
                 )
 
-                # Route to ministry handler
+                # Ministry-specific processing
                 route_ministry(obj, ministry)
 
                 # Queue for ingestion worker

@@ -6,7 +6,7 @@ from typing import List, Optional, Any
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent.parent / "host.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "host.host.db"
 
 
 def _connect():

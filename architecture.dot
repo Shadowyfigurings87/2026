@@ -1,0 +1,44 @@
+digraph Rover1 {
+    rankdir=LR;
+    node [shape=box, style=rounded];
+
+    ArduinoHW [label="Arduino HW"];
+    Serial [label="Serial Port"];
+    Reader [label="Reader Thread"];
+    Parser [label="Parser (HB/ACK/TEL)"];
+    State [label="Arduino State"];
+    AStream [label="Arduino Stream"];
+    AIngest [label="Arduino Ingest Stream"];
+
+    RF [label="RF Stream"];
+    HB [label="Heartbeat Stream"];
+    WD [label="Watchdog Stream"];
+
+    Merged [label="Merged Stream"];
+    Telemetry [label="Unified Telemetry Generator"];
+    Uplink [label="Uplink: send_unified_uplink"];
+    Conn [label="Connection: connect_with_retry"];
+    Ngrok [label="ngrok Tunnel"];
+    HostTCP [label="Host TCP Server"];
+    Queue [label="Ingress Queue"];
+    DB [label="DB Writer"];
+    Dash [label="Live Dashboard"];
+    Cmd [label="Operator Commands"];
+    Listener [label="Command Listener"];
+    Handle [label="handle_command_packet"];
+    Write [label="write_to_arduino"];
+
+    ArduinoHW -> Serial -> Reader -> Parser -> State -> AStream -> AIngest;
+    RF -> Merged;
+    HB -> Merged;
+    WD -> Merged;
+    AIngest -> Merged;
+
+    Merged -> Telemetry -> Uplink -> Conn -> Ngrok -> HostTCP -> Queue;
+    Queue -> DB;
+    Queue -> Dash;
+
+    Dash -> Cmd -> HostTCP;
+
+    HostTCP -> Ngrok -> Uplink -> Listener -> Handle -> Write -> ArduinoHW;
+}
