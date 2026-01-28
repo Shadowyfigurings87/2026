@@ -1,25 +1,32 @@
 // SYSTEM PANEL LOGIC
 
-async function updateSystemPanel() {
-    try {
-        const t = await fetch("/system/cpu_temp").then(r => r.json());
-        const d = await fetch("/system/db_latency").then(r => r.json());
+window.initSystemPanel = function () {
 
-        document.getElementById("cpu-temp").innerText =
-            t.cpu_temp_c === null ? "--" : t.cpu_temp_c.toFixed(1) + "°C";
+    async function updateSystemPanel() {
+        try {
+            const t = await fetch("/system/cpu_temp").then(r => r.json());
+            const d = await fetch("/system/db_latency").then(r => r.json());
 
-        document.getElementById("db-latency").innerText =
-            d.latency_ms?.toFixed(2) + " ms";
+            document.getElementById("cpu-temp").innerText =
+                t.cpu_temp_c === null ? "--" : t.cpu_temp_c.toFixed(1) + "°C";
 
-        document.getElementById("db-writes").innerText =
-            d.writes_total ?? "--";
+            document.getElementById("db-latency").innerText =
+                d.latency_ms?.toFixed(2) + " ms";
 
-        document.getElementById("db-errors").innerText =
-            d.write_errors ?? "--";
+            document.getElementById("db-writes").innerText =
+                d.writes_total ?? "--";
 
-    } catch (e) {
-        console.error("System panel update failed", e);
+            document.getElementById("db-errors").innerText =
+                d.write_errors ?? "--";
+
+        } catch (e) {
+            console.error("System panel update failed", e);
+        }
     }
-}
 
-setInterval(updateSystemPanel, 500);
+    // Run immediately
+    updateSystemPanel();
+
+    // Then run every 500ms
+    setInterval(updateSystemPanel, 500);
+};

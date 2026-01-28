@@ -14,8 +14,8 @@ from Rover1.ministries.ingestion.base import push_event
 # CONFIG
 # ============================================================
 
-COMMAND_HOST = "0.tcp.ngrok.io"     # Replace with your command tunnel host
-COMMAND_PORT = 12345                # Replace with your command tunnel port
+COMMAND_HOST = "2.tcp.ngrok.io"     # Replace with your command tunnel host
+COMMAND_PORT = 18237                # Replace with your command tunnel port
 
 RECONNECT_DELAY = 3.0               # Seconds between reconnect attempts
 BUFFER_SIZE = 4096                  # Socket read size

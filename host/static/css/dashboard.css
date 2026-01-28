@@ -1,135 +1,184 @@
-/* GLOBAL HACKER THEME — neon cyan, dark matte, scanlines */
+/* ============================================================
+   ROVER COCKPIT — CORE DASHBOARD LAYOUT
+   ============================================================ */
 
-body {
+html, body {
     margin: 0;
-    background: #050505;
+    padding: 0;
+    background: #000;
     color: #0ff;
-    font-family: "Consolas", "Courier New", monospace;
+    font-family: Arial, sans-serif;
     overflow: hidden;
 }
 
-/* Subtle scanline overlay */
-body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-        to bottom,
-        rgba(0,255,255,0.03) 0px,
-        rgba(0,255,255,0.03) 1px,
-        transparent 2px,
-        transparent 4px
-    );
-    z-index: 9999;
-}
+/* ============================================================
+   TOP BAR
+   ============================================================ */
 
-/* TOP BAR */
 #top-bar {
-    height: 40px;
-    background: #0a0a0a;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    background: #020202;
     border-bottom: 1px solid #0ff4;
     display: flex;
     align-items: center;
-    padding: 0 15px;
-    gap: 25px;
+    gap: 20px;
+    padding: 0 12px;
+    z-index: 1000;
     box-shadow: 0 0 12px #0ff3;
 }
 
-/* SIDEBAR */
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+
 #sidebar {
-    position: absolute;
-    top: 40px;
+    position: fixed;
+    top: 32px;
     left: 0;
-    width: 170px;
+    width: 140px;
     bottom: 0;
-    background: #0a0a0a;
+    background: #010101;
     border-right: 1px solid #0ff4;
+    padding-top: 10px;
     box-shadow: 0 0 12px #0ff3;
+}
+
+#sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
 #sidebar li {
-    padding: 14px;
+    padding: 10px 12px;
     cursor: pointer;
-    border-bottom: 1px solid #0ff2;
+    color: #0ff;
+    text-shadow: 0 0 6px #0ff;
+    border-bottom: 1px solid #033;
     transition: background 0.2s, color 0.2s;
 }
 
 #sidebar li:hover {
-    background: #0ff3;
+    background: #0ff;
     color: #000;
+    text-shadow: none;
 }
 
-/* WINDOW AREA */
+/* ============================================================
+   WINDOW AREA (FLOATING WINDOWS LIVE HERE)
+   ============================================================ */
+
 #window-area {
     position: absolute;
-    top: 40px;
-    left: 170px;
+    top: 32px;
+    left: 140px;
     right: 0;
     bottom: 0;
     overflow: visible;
 }
 
-/* FLOATING WINDOWS */
-.window {
+/* ============================================================
+   FLOATING WINDOWS
+   ============================================================ */
+
+.floating-window {
     position: absolute;
-    width: 420px;
-    height: 320px;
-    background: #0b0b0b;
-    border: 1px solid #0ff6;
-    box-shadow: 0 0 20px #0ff4;
-    resize: both;
-    overflow: hidden;
-    animation: windowSpawn 0.25s ease-out;
+    background: #030303;
+    border: 2px solid #0ff4;
+    border-radius: 8px;
+    box-shadow: 0 0 25px #0ff3, inset 0 0 20px #000;
+    min-width: 260px;
+    min-height: 180px;
+    padding: 0;
+    color: #0ff;
+    text-shadow: 0 0 6px #0ff;
 }
 
-@keyframes windowSpawn {
-    from { transform: scale(0.9); opacity: 0; }
-    to   { transform: scale(1); opacity: 1; }
-}
+/* ============================================================
+   TITLEBAR
+   ============================================================ */
 
-/* ACTIVE WINDOW GLOW */
-.window:focus-within {
-    box-shadow: 0 0 25px #0ff9;
-    border-color: #0ff;
-}
-
-/* TITLEBAR */
 .window-titlebar {
-    height: 30px;
-    background: #0e0e0e;
+    background: #000;
     border-bottom: 1px solid #0ff4;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 10px;
+    padding: 6px 10px;
+    color: #0ff;
+    text-shadow: 0 0 6px #0ff;
     cursor: move;
     user-select: none;
-    color: #0ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.window-title {
     font-weight: bold;
-    text-shadow: 0 0 6px #0ff;
+    letter-spacing: 1px;
 }
 
-/* CLOSE BUTTON */
-.close-btn {
-    background: none;
-    border: none;
-    color: #0ff;
-    font-size: 18px;
+.window-close {
+    background: #200;
+    border: 1px solid #f00;
+    color: #f00;
+    padding: 2px 8px;
     cursor: pointer;
-    text-shadow: 0 0 6px #0ff;
+    border-radius: 4px;
+    box-shadow: 0 0 10px #f004;
 }
 
-.close-btn:hover {
+.window-close:hover {
+    background: #f00;
     color: #000;
-    background: #0ff;
+    box-shadow: 0 0 20px #f00;
 }
 
-/* WINDOW CONTENT */
+/* ============================================================
+   WINDOW CONTENT
+   ============================================================ */
+
 .window-content {
     padding: 10px;
+    background: #020202;
+    border-radius: 0 0 8px 8px;
+    border: 1px solid #033;
+    box-shadow: inset 0 0 20px #000;
+    height: calc(100% - 40px);
     overflow: auto;
-    height: calc(100% - 30px);
-    color: #0ff;
+}
+
+/* ============================================================
+   RESIZE HANDLES
+   ============================================================ */
+
+.resize-handle {
+    position: absolute;
+    background: transparent;
+}
+
+.resize-e {
+    right: 0;
+    top: 0;
+    width: 10px;
+    height: 100%;
+    cursor: ew-resize;
+}
+
+.resize-s {
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 10px;
+    cursor: ns-resize;
+}
+
+.resize-se {
+    right: 0;
+    bottom: 0;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
 }

@@ -1,17 +1,8 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException
 from host.logs.wrappers import log_arduino
-from host.services.command_router import (
-    send_throttle,
-    send_direction,
-    send_stop,
-    send_custom,
-)
-
-# NEW: use db_reader directly (no more arduino_state.py)
 from host.services import db_reader
 
 router = APIRouter()
-
 
 # ---------------------------------------------------------
 # ARDUINO STATE (DECODED TELEMETRY FROM arduino_state TABLE)
@@ -55,7 +46,6 @@ def get_recent_arduino():
     Useful for debugging or verifying firmware output.
     """
     try:
-        # Use the generic telemetry fetcher and filter client-side
         rows = db_reader.get_recent_telemetry(limit=100)
         arduino_rows = [r for r in rows if r["ministry"] == "arduino"]
 
@@ -67,46 +57,4 @@ def get_recent_arduino():
         raise HTTPException(
             status_code=500,
             detail="Error retrieving recent telemetry"
-        )
-
-
-# ---------------------------------------------------------
-# COMMAND ENDPOINT (UNCHANGED)
-# ---------------------------------------------------------
-
-@router.post("/command")
-def send_command(payload: dict = Body(...)):
-    """
-    Accepts a JSON payload and routes it to the correct command function.
-    Expected formats:
-      { "type": "throttle", "value": 0.5 }
-      { "type": "direction", "dir": "fwd" }
-      { "type": "stop" }
-      { "type": "custom", ... }
-    """
-    try:
-        log_arduino("arduino_command_received", payload=payload)
-
-        cmd_type = payload.get("type")
-
-        if cmd_type == "throttle":
-            result = send_throttle(payload.get("value"))
-
-        elif cmd_type == "direction":
-            result = send_direction(payload.get("dir"))
-
-        elif cmd_type == "stop":
-            result = send_stop()
-
-        else:
-            result = send_custom(payload)
-
-        log_arduino("arduino_command_sent", result=result)
-        return {"status": "ok", "sent": result}
-
-    except Exception as e:
-        log_arduino("arduino_command_error", payload=payload, error=str(e))
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to send Arduino command"
         )

@@ -105,8 +105,18 @@ def handle_json_client(conn, addr):
                 ministry = (
                     obj.get("ministry")
                     or obj.get("device")
+                    or obj.get("type")
+                    or obj.get("source")
                     or "unknown"
                 )
+
+                # Auto-detect ESP32 by payload signature
+                if ministry == "unknown":
+                    if "mac" in obj or "rssi" in obj or "uuids" in obj:
+                        ministry = "esp32"
+                    if "status" in obj and obj.get("status") in ("idle", "not_connected"):
+                        ministry = "esp32"
+
 
                 # Ministry-specific processing
                 route_ministry(obj, ministry)

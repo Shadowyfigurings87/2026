@@ -1,16 +1,10 @@
-# host/api/esp32.py
-
 from fastapi import APIRouter
 from host.services import db_reader
 
-router = APIRouter(prefix="/arduino", tags=["esp32"])
+router = APIRouter(tags=["esp32"])
 
-
-@router.get("/esp32")
+@router.get("")
 def get_esp32_status():
-    """
-    Return the latest ESP32 state as stored by ingestion.
-    """
     state = db_reader.get_esp32_state()
     if not state:
         return {

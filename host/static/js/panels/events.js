@@ -1,20 +1,31 @@
 // EVENT LOG PANEL LOGIC
 
-async function updateEventLogPanel() {
-    try {
-        const events = await fetch("/events/latest").then(r => r.json());
+window.initEventLogPanel = function () {
 
-        const log = document.getElementById("event-log");
+    async function updateEventLogPanel() {
+        try {
+            const events = await fetch("/events/latest").then(r => r.json());
 
-        events.forEach(ev => {
-            const entry = document.createElement("div");
-            entry.textContent = `[${ev.ts}] ${ev.type}: ${ev.message}`;
-            log.prepend(entry);
-        });
+            const log = document.getElementById("event-log");
+            if (!log) {
+                console.error("Event log panel: #event-log not found");
+                return;
+            }
 
-    } catch (e) {
-        console.error("Event log update failed", e);
+            events.forEach(ev => {
+                const entry = document.createElement("div");
+                entry.textContent = `[${ev.ts}] ${ev.type}: ${ev.message}`;
+                log.prepend(entry);
+            });
+
+        } catch (e) {
+            console.error("Event log update failed", e);
+        }
     }
-}
 
-setInterval(updateEventLogPanel, 1000);
+    // Run immediately
+    updateEventLogPanel();
+
+    // Then run every second
+    setInterval(updateEventLogPanel, 1000);
+};

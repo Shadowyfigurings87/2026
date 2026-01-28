@@ -1,128 +1,109 @@
-// ===============================
-// WINDOW MANAGER
-// ===============================
+// =======================================================
+// GLOBAL STUBS (defined BEFORE import)
+// Ensures inline onclick handlers never throw
+// =======================================================
 
-let zIndexCounter = 10;
-
-// Load a panel by name (camera, telemetry, rf, system, commands, events)
-function openPanel(name) {
-    fetch(`/static/panels/${name}.html`)
-        .then(r => r.text())
-        .then(html => createWindow(name, html))
-        .catch(err => console.error("Failed to load panel:", name, err));
+if (!window.openPanel) {
+    window.openPanel = function(name) {
+        console.warn("openPanel() called before window manager loaded:", name);
+    };
 }
 
-function createWindow(name, html) {
-    const win = document.createElement("div");
-    win.className = "window";
-    win.style.left = "200px";
-    win.style.top = "80px";
-    win.style.zIndex = zIndexCounter++;
+if (!window.createWindow) {
+    window.createWindow = function() {
+        console.warn("createWindow() called before window manager loaded");
+    };
+}
 
-    // Base window structure
-    win.innerHTML = `
-        <div class="window-titlebar">
-            <span>${name.toUpperCase()}</span>
-            <button class="close-btn" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-        <div class="window-content"></div>
-    `;
+// =======================================================
+// IMPORT WINDOW MANAGER (guaranteed to overwrite stubs)
+// =======================================================
 
-    const content = win.querySelector(".window-content");
 
-    // ===============================
-    // SAFE HTML INSERTION (CRITICAL)
-    // ===============================
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+// =======================================================
+// DASHBOARD CORE LOGIC
+// =======================================================
 
-    // Insert parsed nodes exactly as written
-    content.append(...doc.body.childNodes);
+let activePanel = null;
 
-    // ===============================
-    // SCRIPT LOADER (GUARANTEED EXECUTION)
-    // ===============================
-    const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-    let match;
+window.setActivePanel = function(name) {
+    activePanel = name;
+    console.log("Active panel:", name);
+};
 
-    while ((match = scriptRegex.exec(html))) {
-        const scriptTag = match[0];
-        const srcMatch = scriptTag.match(/src="([^"]+)"/);
-
-        const newScript = document.createElement("script");
-
-        if (srcMatch) {
-            // External script
-            newScript.src = srcMatch[1] + "?v=" + Date.now(); // cache-bust
-        } else {
-            // Inline script
-            newScript.textContent = match[1];
-        }
-
-        document.body.appendChild(newScript);
+window.clearActivePanel = function(name) {
+    if (activePanel === name) {
+        activePanel = null;
+        console.log("Panel closed:", name);
     }
+};
 
+// =======================================================
+// GLOBAL KEYBOARD ROUTER
+// =======================================================
 
-    // ===============================
-    // PANEL INITIALIZERS
-    // ===============================
-    if (name === "telemetry") {
-        // Delay to allow telemetry.js to load and execute
-        setTimeout(() => {
-            if (typeof startTelemetryPanel === "function") {
-                startTelemetryPanel();
-            } else {
-                console.warn("Telemetry panel script not ready yet");
+window.addEventListener("keydown", (e) => {
+    if (!activePanel) return;
+
+    if (activePanel === "commands" && typeof window.roverKeyHandler === "function") {
+        window.roverKeyHandler(e);
+    }
+});
+
+// =======================================================
+// GLOBAL MOUSE WHEEL ROUTER
+// =======================================================
+
+window.addEventListener("wheel", (e) => {
+    if (!activePanel) return;
+
+    if (activePanel === "commands" && typeof window.roverWheelHandler === "function") {
+        window.roverWheelHandler(e);
+    }
+}, { passive: false });
+
+// =======================================================
+// PANEL INITIALIZATION HOOKS (DYNAMIC SCRIPT LOADING)
+// =======================================================
+
+async function initializePanel(name) {
+    switch (name) {
+
+        case "commands":
+            await import("/static/js/panels/commands.js");
+            if (typeof window.initCommandsPanel === "function") {
+                window.initCommandsPanel();
             }
-        }, 50);
-    }
+            break;
 
-    document.getElementById("window-area").appendChild(win);
-    makeDraggable(win);
-}
+        case "telemetry":
+            await import("/static/js/panels/telemetry.js");
+            if (typeof window.startTelemetryPanel === "function") {
+                window.startTelemetryPanel();
+            }
+            break;
 
-// ===============================
-// DRAGGABLE WINDOWS
-// ===============================
-
-function makeDraggable(win) {
-    const bar = win.querySelector(".window-titlebar");
-    let offsetX = 0, offsetY = 0, dragging = false;
-
-    bar.addEventListener("mousedown", e => {
-        dragging = true;
-        offsetX = e.clientX - win.offsetLeft;
-        offsetY = e.clientY - win.offsetTop;
-        win.style.zIndex = zIndexCounter++;
-    });
-
-    document.addEventListener("mousemove", e => {
-        if (!dragging) return;
-        win.style.left = (e.clientX - offsetX) + "px";
-        win.style.top = (e.clientY - offsetY) + "px";
-    });
-
-    document.addEventListener("mouseup", () => dragging = false);
-}
-
-// ===============================
-// TOP BAR METRICS
-// ===============================
-
-async function updateTopBar() {
-    try {
-        const q = await fetch("/telemetry/queue_depth").then(r => r.json());
-        const i = await fetch("/telemetry/ingestion_rate").then(r => r.json());
-        const h = await fetch("/telemetry/rover_heartbeat").then(r => r.json());
-
-        document.getElementById("queue-depth-top").innerText = "Queue: " + q.queue_depth;
-        document.getElementById("ingestion-rate-top").innerText = "Ingest: " + i.ingestion_rate;
-        document.getElementById("heartbeat-top").innerText = "Heartbeat: " + h.age_seconds;
-
-    } catch (e) {
-        console.error("Top bar update failed", e);
+        case "camera":
+            await import("/static/js/panels/camera.js");
+            if (typeof window.initCameraPanel === "function") {
+                window.initCameraPanel();
+            }
+            break;
+        case "esp32":
+            await import("/static/js/panels/esp32.js");
+            if (typeof window.initESP32Panel === "function") {
+                window.initESP32Panel();
+            }
+            break;
     }
 }
 
-setInterval(updateTopBar, 500);
-updateTopBar();
+window.initializePanel = initializePanel;
+
+// =======================================================
+// WINDOW MANAGER HOOK-IN
+// =======================================================
+
+window.addEventListener("panel-loaded", (e) => {
+    initializePanel(e.detail);
+});

@@ -1,34 +1,37 @@
-<h2>Rover Control</h2>
+<div id="rover-panel" class="commands-panel">
 
-<div class="drive-mode-panel">
-    <h3>Drive Mode</h3>
-    <div class="drive-mode-row">
-        <button id="mode-crawl" class="drive-mode-btn">Crawl</button>
-        <button id="mode-cruise" class="drive-mode-btn">Cruise</button>
-        <button id="mode-boost" class="drive-mode-btn">Boost</button>
+    <h2>Rover Command Panel</h2>
+
+    <div id="status-line" class="command-status">
+        Panel inactive. Click inside to arm controls.
     </div>
-    <p class="hint">Boost requires holding SHIFT</p>
-</div>
 
-<div class="control-row">
-    <button id="btn-forward" class="control-btn">Forward</button>
-    <button id="btn-reverse" class="control-btn">Reverse</button>
-</div>
+    <!-- Mode buttons -->
+    <div class="command-modes">
+        <button id="mode-crawl" class="drive-mode-btn">Crawl (1)</button>
+        <button id="mode-cruise" class="drive-mode-btn">Cruise (2)</button>
+        <button id="mode-boost" class="drive-mode-btn">Boost (3)</button>
+    </div>
 
-<div class="control-row">
-    <button id="btn-dir-fwd" class="control-btn">Dir FWD</button>
-    <button id="btn-dir-rev" class="control-btn">Dir REV</button>
-</div>
+    <!-- Throttle -->
+    <div class="command-throttle">
+        <label for="throttle">Throttle:</label>
+        <input id="throttle" type="range" min="0" max="255" value="0">
+        <span id="command-throttle-value">0</span>
 
-<div class="control-row">
-    <label>Throttle</label>
-    <input id="throttle" type="range" min="0" max="255" value="0">
-</div>
+    </div>span
 
-<div class="control-row">
-    <button id="btn-stop" class="control-btn stop-btn">STOP</button>
-</div>
+    <!-- Drive direction -->
+    <div class="command-drive">
+        <button id="btn-forward" class="control-btn">Forward (F)</button>
+        <button id="btn-stop" class="control-btn stop-btn">Stop (Space)</button>
+        <button id="btn-reverse" class="control-btn">Reverse (R)</button>
+    </div>
 
-<h3>Custom JSON Command</h3>
-<textarea id="custom-json" placeholder='{"type": "custom"}'></textarea>
-<button id="send-custom-btn">Send</button>
+    <!-- Steering -->
+    <div class="command-steering">
+        <button id="btn-dir-rev" class="control-btn">Steer Left (←)</button>
+        <button id="btn-dir-fwd" class="control-btn">Steer Right (→)</button>
+    </div>
+
+</div>

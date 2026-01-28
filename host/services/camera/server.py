@@ -1,7 +1,6 @@
 # host/services/camera/server.py
 #
-# DEBUG-ENHANCED VERSION
-# Extremely verbose logging to diagnose raw JPEG ingestion pipeline.
+# RAW JPEG CAMERA SERVER + FPS TRACKING
 
 import socket
 import threading
@@ -14,6 +13,27 @@ PORT = 5001
 
 # Shared global buffer for latest frames
 frame_buffer = FrameBuffer(max_frames=3)
+print("SERVER BUFFER ID:", id(frame_buffer))
+
+# Store timestamps of recent frames for FPS calculation
+frame_times = []
+
+
+def record_frame_timestamp():
+    """Record arrival time of a frame and keep only recent timestamps."""
+    now = time.time()
+    frame_times.append(now)
+
+    # Keep only the last ~60 timestamps (about 1–2 seconds of history)
+    if len(frame_times) > 60:
+        frame_times.pop(0)
+
+
+def get_fps():
+    """Return frames per second based on timestamps from the last 1 second."""
+    now = time.time()
+    one_sec_ago = now - 1.0
+    return sum(1 for t in frame_times if t >= one_sec_ago)
 
 
 def handle_camera_connection(conn, addr):
@@ -86,6 +106,9 @@ def handle_camera_connection(conn, addr):
 
                 # Store in buffer
                 frame_buffer.push(jpeg)
+
+                # Record timestamp for FPS calculation
+                record_frame_timestamp()
 
                 print("[CameraServer] Frame stored. Buffer size now:", len(frame_buffer.frames))
                 print("[CameraServer] Waiting for next frame…\n")

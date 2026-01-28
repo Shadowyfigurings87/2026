@@ -1,7 +1,8 @@
 # host/services/camera/mjpeg_router.py
 
 from fastapi.responses import StreamingResponse
-from .server import frame_buffer
+from host.services.camera.server import frame_buffer
+print("MJPEG BUFFER ID:", id(frame_buffer))
 
 def mjpeg_stream():
     boundary = "--frame"

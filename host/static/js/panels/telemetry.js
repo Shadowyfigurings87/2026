@@ -1,27 +1,40 @@
 // TELEMETRY PANEL LOGIC
 
-async function updateTelemetryPanel() {
-    try {
-        const t = await fetch("/telemetry/arduino/latest").then(r => r.json());
+let telemetryInterval = null;
 
-        document.getElementById("rpm-value").innerText = t.rpm ?? "--";
-        document.getElementById("throttle-value").innerText = t.throttle ?? "--";
-        document.getElementById("direction-value").innerText = t.direction ?? "--";
-        document.getElementById("voltage-value").innerText = t.voltage ?? "--";
-        document.getElementById("temp-value").innerText = t.temp ?? "--";
+window.startTelemetryPanel = function () {
 
-        const log = document.getElementById("telemetry-log");
-        const entry = document.createElement("div");
-        entry.textContent = JSON.stringify(t);
-        log.prepend(entry);
+    async function updateTelemetryPanel() {
+        try {
+            const t = await fetch("/telemetry/arduino/latest").then(r => r.json());
 
-    } catch (e) {
-        console.error("Telemetry panel update failed", e);
+            document.getElementById("rpm-value").innerText = t.rpm ?? "--";
+            document.getElementById("throttle-value").innerText = t.throttle ?? "--";
+            document.getElementById("direction-value").innerText = t.direction ?? "--";
+            document.getElementById("voltage-value").innerText = t.voltage ?? "--";
+            document.getElementById("temp-value").innerText = t.temp ?? "--";
+
+            const log = document.getElementById("telemetry-log");
+            const entry = document.createElement("div");
+            entry.textContent = JSON.stringify(t);
+            log.prepend(entry);
+
+        } catch (e) {
+            console.error("Telemetry panel update failed", e);
+        }
     }
-}
 
-// ⭐ THIS FUNCTION MUST EXIST ⭐
-function startTelemetryPanel() {
-    updateTelemetryPanel();          // run immediately
-    setInterval(updateTelemetryPanel, 500);   // then run every 500ms
-}
+    // Run immediately
+    updateTelemetryPanel();
+
+    // Start interval
+    telemetryInterval = setInterval(updateTelemetryPanel, 500);
+};
+
+// ⭐ Cleanup when panel closes
+window.stopTelemetryPanel = function () {
+    if (telemetryInterval) {
+        clearInterval(telemetryInterval);
+        telemetryInterval = null;
+    }
+};

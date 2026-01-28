@@ -10,11 +10,24 @@
 
 <!-- TOP BAR -->
 <div id="top-bar">
-    <span id="queue-depth-top">Queue: --</span>
-    <span id="ingestion-rate-top">Ingest: --</span>
-    <span id="heartbeat-top">Heartbeat: --</span>
-    <span id="camera-fps-top">FPS: --</span>
+
+    <div id="mission-status">
+        <span class="status-label">Status:</span>
+        <span id="status-indicator">--</span>
+    </div>
+
+    <div id="operator-info">
+        <span class="status-label">Operator:</span>
+        <span id="operator-name">Not Logged In</span>
+    </div>
+
+    <div id="session-info">
+        <span class="status-label">Session:</span>
+        <span id="session-state">Inactive</span>
+    </div>
+
 </div>
+
 
 <!-- SIDEBAR -->
 <nav id="sidebar">
@@ -25,12 +38,14 @@
         <li onclick="openPanel('rf')">RF</li>
         <li onclick="openPanel('system')">System</li>
         <li onclick="openPanel('events')">Events</li>
+        <li onclick="openPanel('esp32')">ESP32</li>
     </ul>
 </nav>
 
 <!-- FLOATING WINDOW CONTAINER -->
 <div id="window-area"></div>
 
+<script src="/static/js/window_manager.js"></script>
 <script src="/static/js/dashboard.js"></script>
 
 </body>
