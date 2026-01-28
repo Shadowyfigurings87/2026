@@ -15,7 +15,7 @@ from Rover1.ministries.camera.config import (
 from Rover1.ministries.camera.camera_backend import get_camera
 from Rover1.ministries.camera.encoder import encode_jpeg
 from Rover1.ministries.camera.buffer import FrameBuffer
-from Rover1.ministries.camera.mjpeg_client import send_mjpeg_stream   # same name, new raw protocol
+from Rover1.ministries.camera.mjpeg_client import send_mjpeg_stream   # RAW JPEG uplink
 
 
 _buffer = FrameBuffer(size=3)
@@ -108,12 +108,12 @@ def _run_camera_ministry():
     ).start()
     print("[CameraMinistry] Capture thread started")
 
-    # Start RAW uplink (same function name)
+    # Directly start RAW uplink (blocking inside this thread)
     print("[CameraMinistry] Launching RAW uplink client…")
     send_mjpeg_stream(
         host=HOST,
         port=PORT,
-        frame_generator=_jpeg_generator(),
+        frame_generator=_jpeg_generator(),   # original behavior
         retry_delay=CONNECT_RETRY_DELAY,
     )
 
