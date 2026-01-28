@@ -13,8 +13,8 @@ from Rover1.ministries.control.motor import apply_motor_command
 # CONFIG
 # ============================================================
 
-COMMAND_HOST = "2.tcp.ngrok.io"     # Dedicated command tunnel host
-COMMAND_PORT = 18237                # Dedicated command tunnel port
+COMMAND_HOST = "8.tcp.ngrok.io"     # Dedicated command tunnel host
+COMMAND_PORT = 15822                # Dedicated command tunnel port
 
 RECONNECT_DELAY = 3.0               # Seconds between reconnect attempts
 BUFFER_SIZE = 4096                  # Socket read size
