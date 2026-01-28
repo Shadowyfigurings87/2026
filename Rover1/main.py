@@ -9,6 +9,7 @@ from Rover1.ministries.arduino import state
 from Rover1.ministries.camera.camera_ministry import start_camera_ministry
 from Rover1.ministries.ingestion.base import merged_stream
 from Rover1.ministries.network.uplink import send_unified_uplink
+from Rover1.ministries.network.command_client import start_command_client
 
 # Telemetry tunnel (ngrok A)
 TELEMETRY_HOST = "8.tcp.ngrok.io"
@@ -48,15 +49,18 @@ def main():
         name="CameraMinistry",
     ).start()
 
+    # ---------------------------------------------------------
+    # 3. RedRoverLink Server
+    # ---------------------------------------------------------
     print("[Rover1] Starting RedRoverLink server…")
     threading.Thread(
         target=start_redrover_server,
         daemon=True,
         name="RedRoverLink",
     ).start()
-	
+
     # ---------------------------------------------------------
-    # 3. Ingestion Ministry (merged_stream generator)
+    # 4. Ingestion Ministry (merged_stream generator)
     # ---------------------------------------------------------
     print("[Rover1] Initializing ingestion (merged_stream)…")
     try:
@@ -67,7 +71,7 @@ def main():
         telemetry_gen = None
 
     # ---------------------------------------------------------
-    # 4. Uplink Ministry
+    # 5. Uplink Ministry
     # ---------------------------------------------------------
     print(f"[Rover1] Starting uplink → {TELEMETRY_HOST}:{TELEMETRY_PORT}")
     threading.Thread(
@@ -77,10 +81,20 @@ def main():
         name="UplinkMinistry",
     ).start()
 
+    # ---------------------------------------------------------
+    # 6. Command Client Ministry
+    # ---------------------------------------------------------
+    print("[Rover1] Starting Command Client ministry…")
+    threading.Thread(
+        target=start_command_client,
+        daemon=True,
+        name="CommandClient",
+    ).start()
+
     print("\n[Rover1] All ministries launched. Entering heartbeat loop.\n")
 
     # ---------------------------------------------------------
-    # 5. Main heartbeat loop (never exits)
+    # 7. Main heartbeat loop (never exits)
     # ---------------------------------------------------------
     while True:
         print("[Rover1] heartbeat")
