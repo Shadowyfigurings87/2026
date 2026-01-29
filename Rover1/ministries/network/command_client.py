@@ -34,36 +34,78 @@ def dispatch_command(cmd: dict):
         kind = cmd.get("cmd")
         print(f"[CommandClient] Command kind = {kind}")
 
-        # -------------------------------
-        # Motor control
-        # -------------------------------
-        if kind == "drive":
-            throttle = cmd.get("throttle", 0)
-            direction = cmd.get("direction", "stop")
-            print(f"[CommandClient] Dispatching DRIVE → throttle={throttle}, direction={direction}")
-            apply_motor_command(throttle, direction)
+        # ======================================================
+        # THROTTLE MINISTRY
+        # ======================================================
+        if kind == "throttle":
+            value = cmd.get("value", 0)
+            print(f"[CommandClient] THROTTLE → {value}")
+
+            # Convert 0–255 throttle to 0.0–1.0 for motor ministry
+            throttle_float = max(0.0, min(value / 255.0, 1.0))
+            apply_motor_command(throttle_float, direction="forward")
             return
 
-        # -------------------------------
-        # Arduino passthrough
-        # -------------------------------
+        # ======================================================
+        # MOVE / DIRECTION MINISTRY
+        # ======================================================
+        if kind == "move":
+            direction = cmd.get("value", "stop")
+            print(f"[CommandClient] MOVE → {direction}")
+
+            # Direction change only; throttle handled separately
+            apply_motor_command(0.0, direction)
+            return
+
+        # ======================================================
+        # GLOBAL STOP
+        # ======================================================
+        if kind == "stop":
+            print("[CommandClient] GLOBAL STOP")
+            apply_motor_command(0.0, "stop")
+            return
+
+        # ======================================================
+        # ACTUATOR MINISTRY (Arduino-level)
+        # ======================================================
+        if kind == "actuator":
+            direction = cmd.get("dir", "STOP")
+            speed = cmd.get("speed", 0)
+            payload = f"ACT:{direction}:{speed}"
+            print(f"[CommandClient] ACTUATOR → {payload}")
+            send_arduino_command(payload)
+            return
+
+        # ======================================================
+        # RAW ARDUINO PASSTHROUGH
+        # ======================================================
         if kind == "arduino":
             payload = cmd.get("payload")
-            print(f"[CommandClient] Dispatching ARDUINO → payload={payload}")
+            print(f"[CommandClient] ARDUINO PASSTHROUGH → {payload}")
             if payload:
                 send_arduino_command(payload)
             return
 
-        # -------------------------------
-        # System commands
-        # -------------------------------
+        # ======================================================
+        # LEGACY DRIVE COMMAND
+        # ======================================================
+        if kind == "drive":
+            throttle = cmd.get("throttle", 0)
+            direction = cmd.get("direction", "stop")
+            print(f"[CommandClient] DRIVE (legacy) → throttle={throttle}, direction={direction}")
+            apply_motor_command(throttle, direction)
+            return
+
+        # ======================================================
+        # SYSTEM PING
+        # ======================================================
         if kind == "ping":
             print("[CommandClient] Received ping")
             return
 
-        # -------------------------------
-        # Unknown command
-        # -------------------------------
+        # ======================================================
+        # UNKNOWN COMMAND
+        # ======================================================
         print(f"[CommandClient] Unknown command received: {cmd}")
 
     except Exception as e:
@@ -132,12 +174,11 @@ def listen_for_commands(sock: socket.socket):
                     cmd = json.loads(line)
                     print(f"[CommandClient] JSON PARSED OK: {cmd}")
                     dispatch_command(cmd)
-                except Exception as e:
+                except Exception:
                     print(f"[CommandClient] ERROR parsing JSON line: {line!r}")
                     traceback.print_exc()
 
         except socket.timeout:
-            # Normal idle condition
             continue
 
         except Exception as e:
