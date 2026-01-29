@@ -27,11 +27,12 @@ BUFFER_SIZE = 4096                  # Socket read size
 def dispatch_command(cmd: dict):
     """
     Route incoming commands to the correct Rover1 ministry.
-    This ministry no longer emits telemetry; commands now travel
-    through a dedicated tunnel and ingestion is pull-based only.
     """
+    print(f"[CommandClient] DISPATCH → {cmd}")
+
     try:
         kind = cmd.get("cmd")
+        print(f"[CommandClient] Command kind = {kind}")
 
         # -------------------------------
         # Motor control
@@ -39,6 +40,7 @@ def dispatch_command(cmd: dict):
         if kind == "drive":
             throttle = cmd.get("throttle", 0)
             direction = cmd.get("direction", "stop")
+            print(f"[CommandClient] Dispatching DRIVE → throttle={throttle}, direction={direction}")
             apply_motor_command(throttle, direction)
             return
 
@@ -47,6 +49,7 @@ def dispatch_command(cmd: dict):
         # -------------------------------
         if kind == "arduino":
             payload = cmd.get("payload")
+            print(f"[CommandClient] Dispatching ARDUINO → payload={payload}")
             if payload:
                 send_arduino_command(payload)
             return
@@ -61,7 +64,7 @@ def dispatch_command(cmd: dict):
         # -------------------------------
         # Unknown command
         # -------------------------------
-        print(f"[CommandClient] Unknown command: {cmd}")
+        print(f"[CommandClient] Unknown command received: {cmd}")
 
     except Exception as e:
         print(f"[CommandClient] ERROR executing command: {e}")
@@ -82,10 +85,10 @@ def connect_to_host():
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((COMMAND_HOST, COMMAND_PORT))
         sock.settimeout(1.0)
-        print("[CommandClient] Connected to Host command server")
+        print("[CommandClient] CONNECTED to Host command server")
         return sock
     except Exception as e:
-        print(f"[CommandClient] Connection failed: {e}")
+        print(f"[CommandClient] Connection FAILED: {e}")
         return None
 
 
@@ -93,34 +96,53 @@ def listen_for_commands(sock: socket.socket):
     """
     Read line-delimited JSON commands from the Host.
     """
+    print("[CommandClient] Listening for commands…")
     buffer = ""
 
     while True:
         try:
             data = sock.recv(BUFFER_SIZE)
+
+            # -------------------------------
+            # Connection closed
+            # -------------------------------
             if not data:
-                print("[CommandClient] Host closed connection")
+                print("[CommandClient] Host CLOSED connection")
                 return
 
-            buffer += data.decode("utf-8", errors="ignore")
+            print(f"[CommandClient] RAW DATA RECEIVED: {data!r}")
 
+            # Decode and append to buffer
+            decoded = data.decode("utf-8", errors="ignore")
+            print(f"[CommandClient] DECODED DATA: {decoded!r}")
+            buffer += decoded
+
+            # -------------------------------
             # Process complete lines
+            # -------------------------------
             while "\n" in buffer:
                 line, buffer = buffer.split("\n", 1)
+                print(f"[CommandClient] LINE EXTRACTED: {line!r}")
+
                 if not line.strip():
+                    print("[CommandClient] Skipping empty line")
                     continue
 
                 try:
                     cmd = json.loads(line)
+                    print(f"[CommandClient] JSON PARSED OK: {cmd}")
                     dispatch_command(cmd)
-                except Exception:
-                    print("[CommandClient] Error parsing command:")
+                except Exception as e:
+                    print(f"[CommandClient] ERROR parsing JSON line: {line!r}")
                     traceback.print_exc()
 
         except socket.timeout:
+            # Normal idle condition
             continue
+
         except Exception as e:
-            print(f"[CommandClient] Socket error: {e}")
+            print(f"[CommandClient] SOCKET ERROR: {e}")
+            traceback.print_exc()
             return
 
 
@@ -132,12 +154,13 @@ def start_command_client():
     """
     Persistent loop: connect → listen → reconnect.
     """
-    print("[CommandClient] Ministry starting…")
+    print("[CommandClient] Ministry STARTING…")
 
     while True:
         sock = connect_to_host()
+
         if sock:
             listen_for_commands(sock)
 
-        print(f"[CommandClient] Reconnecting in {RECONNECT_DELAY} seconds…")
+        print(f"[CommandClient] RECONNECTING in {RECONNECT_DELAY} seconds…")
         time.sleep(RECONNECT_DELAY)
