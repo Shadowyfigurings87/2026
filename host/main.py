@@ -8,7 +8,7 @@ from host.services.camera.server import start_camera_server
 from host.api_server import start_api_server
 from host.logs.wrappers import log_ingest
 from host.services.db_writer import start_db_writer
-
+from host.services.command_pipeline.command_server import command_server
 
 def start_host():
     print("\n==============================")
