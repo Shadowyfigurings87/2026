@@ -11,9 +11,27 @@ from Rover1.ministries.ingestion.base import merged_stream
 from Rover1.ministries.network.uplink import send_unified_uplink
 from Rover1.ministries.network.command_client import start_command_client
 
+# GPS FastAPI server
+import uvicorn
+from gps_server import app as gps_app   # your renamed file
+
+
 # Telemetry tunnel (ngrok A)
 TELEMETRY_HOST = "8.tcp.ngrok.io"
 TELEMETRY_PORT = 10214
+
+
+def start_gps_server():
+    """
+    Launch the GPS FastAPI server inside a daemon thread.
+    """
+    print("[Rover1] Starting GPS server on port 8000…")
+    uvicorn.run(
+        gps_app,
+        host="0.0.0.0",
+        port=8000,
+        log_level="info",
+    )
 
 
 def main():
@@ -91,10 +109,20 @@ def main():
         name="CommandClient",
     ).start()
 
+    # ---------------------------------------------------------
+    # 7. GPS FastAPI Server
+    # ---------------------------------------------------------
+    threading.Thread(
+        target=start_gps_server,
+        daemon=True,
+        name="GPSMinistry",
+    ).start()
+    print("[Rover1] GPS server launched")
+
     print("\n[Rover1] All ministries launched. Entering heartbeat loop.\n")
 
     # ---------------------------------------------------------
-    # 7. Main heartbeat loop (never exits)
+    # 8. Main heartbeat loop (never exits)
     # ---------------------------------------------------------
     while True:
         print("[Rover1] heartbeat")

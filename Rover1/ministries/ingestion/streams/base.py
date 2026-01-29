@@ -22,14 +22,12 @@ from Rover1.ministries.ingestion.config import (
 )
 
 from Rover1.redrover_link.tcp_server import redrover_queue
+
+# NEW: GPS SQL query
 from Rover1.db.gps_query import get_latest_gps
 
 
 print(f"[Ingestion] base.py loaded from: {__file__}")
-
-# GPS emission control (global so we can rate-limit across loop iterations)
-last_gps_emit = 0.0
-GPS_INTERVAL = 1.0  # seconds
 
 
 def _iso_now():
@@ -43,16 +41,12 @@ def merged_stream():
       - RedRover events
       - Heartbeat events
       - Watchdog events
-      - GPS ministry events (rate-limited)
       - Arduino ministry metrics
+      - GPS telemetry (from SQL)
       - Queue pressure monitoring
 
     This is the single source of truth for the uplink ministry.
     """
-
-    global last_gps_emit
-
-    print("[Ingestion] merged_stream() starting up")
 
     # Initial startup event
     startup_evt = {
@@ -65,12 +59,10 @@ def merged_stream():
     yield startup_evt
 
     # Initialize generators
-    print("[Ingestion] Initializing generators...")
     arduino_gen = arduino_ingest_stream()
     redrover_gen = redrover_stream()
     hb_gen = heartbeat_stream(interval=5)
     wd_gen = watchdog_stream(check_interval=3)
-    print("[Ingestion] Generators initialized")
 
     # Jitter smoothers per ministry
     smoothers = {
@@ -78,33 +70,26 @@ def merged_stream():
         "redrover": JitterSmoother(),
         "heartbeat": JitterSmoother(),
         "watchdog": JitterSmoother(),
-        "gps": JitterSmoother(),
+        "gps": JitterSmoother(),   # NEW smoother
     }
 
-    last_arduino_metrics_emit = 0.0
-    last_pressure_log = 0.0
-
-    loop_counter = 0
+    last_arduino_metrics_emit = 0
+    last_pressure_log = 0
 
     while True:
-        loop_counter += 1
         now = time.time()
-
-        # Lightweight loop heartbeat for debugging
-        if loop_counter % 1000 == 0:
-            print(f"[Ingestion] Main loop iteration={loop_counter}, now={now}")
 
         # ---------------------------------------------------------
         # Arduino telemetry
         # ---------------------------------------------------------
-        for i in range(WEIGHTS.get("arduino", 0)):
+        for _ in range(WEIGHTS["arduino"]):
             try:
                 obj = next(arduino_gen)
             except StopIteration:
                 print("[Ingestion] Arduino generator exhausted")
                 break
             except Exception as e:
-                print(f"[Ingestion] Arduino generator exception (i={i}): {e}")
+                print(f"[Ingestion] Arduino generator exception: {e}")
                 break
 
             if obj is None:
@@ -120,7 +105,6 @@ def merged_stream():
         # Arduino ministry metrics
         # ---------------------------------------------------------
         if now - last_arduino_metrics_emit > ARDUINO_METRICS_INTERVAL:
-            print("[Ingestion] Emitting Arduino metrics (interval reached)")
             try:
                 metrics = get_arduino_metrics()
                 metrics = ensure_ministry(metrics, "arduino")
@@ -138,15 +122,13 @@ def merged_stream():
         # ---------------------------------------------------------
         # RedRover telemetry
         # ---------------------------------------------------------
-        for i in range(WEIGHTS.get("redrover", 0)):
+        for _ in range(WEIGHTS["redrover"]):
             try:
                 obj = next(redrover_gen)
             except StopIteration:
-                # RedRover stream might be finite or idle
-                print("[Ingestion] RedRover generator exhausted or idle")
                 break
             except Exception as e:
-                print(f"[Ingestion] RedRover generator exception (i={i}): {e}")
+                print(f"[Ingestion] RedRover generator exception: {e}")
                 break
 
             if obj is None:
@@ -156,22 +138,39 @@ def merged_stream():
             obj["ts"] = smoothers["redrover"].smooth(obj.get("ts", now))
             try:
                 obj["_queue_pressure"] = redrover_queue.qsize()
-            except Exception as e:
-                print(f"[Ingestion] RedRover queue size error: {e}")
+            except Exception:
                 obj["_queue_pressure"] = None
             obj["timestamp"] = _iso_now()
             print("[Ingestion] RedRover event:", obj)
             yield obj
 
         # ---------------------------------------------------------
+        # GPS telemetry (from SQL)
+        # ---------------------------------------------------------
+        try:
+            gps_row = get_latest_gps()
+            if gps_row:
+                ts, lat, lon = gps_row
+                gps_obj = {
+                    "ministry": "gps",
+                    "event": "position",
+                    "ts": smoothers["gps"].smooth(ts),
+                    "timestamp": _iso_now(),
+                    "lat": lat,
+                    "lon": lon,
+                }
+                print("[Ingestion] GPS event:", gps_obj)
+                yield gps_obj
+        except Exception as e:
+            print(f"[Ingestion] GPS query error: {e}")
+
+        # ---------------------------------------------------------
         # Queue pressure logging
         # ---------------------------------------------------------
         if now - last_pressure_log > PRESSURE_LOG_INTERVAL:
-            print("[Ingestion] Checking queue pressure...")
             try:
                 qsize = redrover_queue.qsize()
-            except Exception as e:
-                print(f"[Ingestion] Queue pressure qsize() error: {e}")
+            except Exception:
                 qsize = None
 
             if qsize is not None:
@@ -192,14 +191,14 @@ def merged_stream():
         # ---------------------------------------------------------
         # Heartbeat events
         # ---------------------------------------------------------
-        for i in range(WEIGHTS.get("heartbeat", 0)):
+        for _ in range(WEIGHTS["heartbeat"]):
             try:
                 obj = next(hb_gen)
             except StopIteration:
                 print("[Ingestion] Heartbeat generator exhausted")
                 break
             except Exception as e:
-                print(f"[Ingestion] Heartbeat generator exception (i={i}): {e}")
+                print(f"[Ingestion] Heartbeat generator exception: {e}")
                 break
 
             if obj is None:
@@ -214,14 +213,14 @@ def merged_stream():
         # ---------------------------------------------------------
         # Watchdog events
         # ---------------------------------------------------------
-        for i in range(WEIGHTS.get("watchdog", 0)):
+        for _ in range(WEIGHTS["watchdog"]):
             try:
                 obj = next(wd_gen)
             except StopIteration:
                 print("[Ingestion] Watchdog generator exhausted")
                 break
             except Exception as e:
-                print(f"[Ingestion] Watchdog generator exception (i={i}): {e}")
+                print(f"[Ingestion] Watchdog generator exception: {e}")
                 break
 
             if obj is None:
@@ -232,37 +231,6 @@ def merged_stream():
             obj["timestamp"] = _iso_now()
             print("[Ingestion] Watchdog event:", obj)
             yield obj
-
-        # ---------------------------------------------------------
-        # GPS ministry events (rate-limited)
-        # ---------------------------------------------------------
-        # High-visibility debug so we know this block is reached
-        print(f"[Ingestion] GPS block check: now={now}, last_gps_emit={last_gps_emit}, "
-              f"delta={now - last_gps_emit}, interval={GPS_INTERVAL}")
-
-        if now - last_gps_emit >= GPS_INTERVAL:
-            print("[Ingestion] GPS interval reached — querying latest GPS row")
-            try:
-                gps_row = get_latest_gps()
-                print(f"[Ingestion] GPS raw row from DB: {gps_row}")
-                if gps_row:
-                    ts, lat, lon = gps_row
-                    gps_obj = {
-                        "ministry": "gps",
-                        "event": "position",
-                        "ts": smoothers["gps"].smooth(ts),
-                        "lat": lat,
-                        "lon": lon,
-                        "timestamp": _iso_now(),
-                    }
-                    print("[Ingestion] GPS event:", gps_obj)
-                    yield gps_obj
-                else:
-                    print("[Ingestion] GPS row is None or empty — no GPS event emitted this cycle")
-            except Exception as e:
-                print(f"[Ingestion] GPS query error: {e}")
-
-            last_gps_emit = now
 
         # ---------------------------------------------------------
         # Loop pacing

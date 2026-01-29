@@ -5,6 +5,7 @@ WEIGHTS = {
     "redrover": 2,
     "heartbeat": 1,
     "watchdog": 1,
+    "gps": 1,          # <-- NEW: GPS ministry weight
 }
 
 ARDUINO_METRICS_INTERVAL = 5
@@ -12,3 +13,4 @@ PRESSURE_LOG_INTERVAL = 5
 
 HIGH_PRESSURE_THRESHOLD = 500
 CRITICAL_PRESSURE_THRESHOLD = 1000
+
