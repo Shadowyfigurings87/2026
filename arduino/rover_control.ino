@@ -9,7 +9,7 @@ const int pwmPin = 6;   // Dedicated PWM output pin
 volatile unsigned long lastPulseMicros = 0;
 volatile unsigned long pulseIntervalMicros = 0;
 float rpm = 0.0;
-const int motorPoles = 4;  // Adjust to match your motor
+const int motorPoles = 4;
 unsigned long lastUpdateMillis = 0;
 
 // BTS7960 pins
@@ -22,8 +22,8 @@ const int L_EN = 23;
 const int FR_CTRL = 24;   // Drives optocoupler → WS55-220 F/R input
 
 // --- Telemetry state ---
-int currentPwm = 0;          // Raw PWM on pwmPin (0–255)
-int currentActSpeed = 0;     // BTS7960 speed (0–255)
+int currentPwm = 0;          // PWM output (0–255)
+int currentActSpeed = 0;     // BTS7960 actuator speed (0–255)
 String currentDir = "STOP";  // "FWD", "REV", "STOP"
 
 // --- Telemetry timing ---
@@ -34,7 +34,7 @@ void onPGPulse() {
   unsigned long now = micros();
   pulseIntervalMicros = now - lastPulseMicros;
   lastPulseMicros = now;
-  lastUpdateMillis = millis();  // Refresh timestamp only when a pulse arrives
+  lastUpdateMillis = millis();
 }
 
 void setup() {
@@ -43,11 +43,11 @@ void setup() {
 
   // PWM pin setup
   pinMode(pwmPin, OUTPUT);
-  analogWrite(pwmPin, 0);  // Start with 0 duty cycle
+  analogWrite(pwmPin, 0);
   Serial.println("PWM subsystem initialized.");
 
   // PG input setup
-  pinMode(2, INPUT);  // PG signal from WS55-220
+  pinMode(2, INPUT);
   attachInterrupt(digitalPinToInterrupt(2), onPGPulse, RISING);
   Serial.println("PG telemetry subsystem armed.");
 
@@ -57,15 +57,15 @@ void setup() {
   pinMode(R_EN, OUTPUT);
   pinMode(L_EN, OUTPUT);
 
-  digitalWrite(R_EN, HIGH);  // Enable right channel
-  digitalWrite(L_EN, HIGH);  // Enable left channel
+  digitalWrite(R_EN, HIGH);
+  digitalWrite(L_EN, HIGH);
   analogWrite(RPWM, 0);
   analogWrite(LPWM, 0);
-  Serial.println("Actuator subsystem enabled (EN pins HIGH).");
+  Serial.println("Actuator subsystem enabled.");
 
   // Optocoupler F/R setup
   pinMode(FR_CTRL, OUTPUT);
-  digitalWrite(FR_CTRL, LOW);  // Default forward (not grounding F/R)
+  digitalWrite(FR_CTRL, LOW);  // Default forward
   Serial.println("Optocoupler F/R control initialized.");
 }
 
@@ -73,7 +73,7 @@ void loop() {
   // 🔹 Serial command parser
   if (Serial.available()) {
     String input = Serial.readStringUntil('\n');
-    input.trim();  // Remove whitespace/newlines
+    input.trim();
 
     Serial.print("CMD Received: ");
     Serial.println(input);
@@ -83,9 +83,8 @@ void loop() {
       int speed = input.substring(8).toInt();
       speed = constrain(speed, 0, 255);
       analogWrite(RPWM, speed);
-      analogWrite(LPWM, 0);  // safety: only one channel active
+      analogWrite(LPWM, 0);
       currentActSpeed = speed;
-      currentDir = (speed > 0) ? "FWD" : "STOP";
       Serial.print("ACK:ACT:FWD:");
       Serial.println(speed);
     }
@@ -93,9 +92,8 @@ void loop() {
       int speed = input.substring(8).toInt();
       speed = constrain(speed, 0, 255);
       analogWrite(LPWM, speed);
-      analogWrite(RPWM, 0);  // safety: only one channel active
+      analogWrite(RPWM, 0);
       currentActSpeed = speed;
-      currentDir = (speed > 0) ? "REV" : "STOP";
       Serial.print("ACK:ACT:REV:");
       Serial.println(speed);
     }
@@ -103,9 +101,9 @@ void loop() {
       analogWrite(RPWM, 0);
       analogWrite(LPWM, 0);
       currentActSpeed = 0;
-      currentDir = "STOP";
       Serial.println("ACK:ACT:STOP");
     }
+
     // --- PWM control ---
     else if (input.startsWith("PWM:")) {
       int pwmValue = input.substring(4).toInt();
@@ -115,17 +113,35 @@ void loop() {
       Serial.print("ACK:PWM:");
       Serial.println(pwmValue);
     }
-    // --- Direction control via optocoupler ---
+
+    // --- Direction control (optocoupler) ---
     else if (input.startsWith("DIR:FWD")) {
-      digitalWrite(FR_CTRL, LOW);  // Forward (F/R not grounded)
-      currentDir = (currentActSpeed > 0) ? "FWD" : "STOP";
+      digitalWrite(FR_CTRL, LOW);
+      currentDir = "FWD";   // Always reflect commanded direction
       Serial.println("ACK:DIR:FWD");
     }
     else if (input.startsWith("DIR:REV")) {
-      digitalWrite(FR_CTRL, HIGH); // Reverse (F/R grounded via optocoupler)
-      currentDir = (currentActSpeed > 0) ? "REV" : "STOP";
+      digitalWrite(FR_CTRL, HIGH);
+      currentDir = "REV";   // Always reflect commanded direction
       Serial.println("ACK:DIR:REV");
     }
+
+    // --- System-wide STOP ---
+    else if (input.startsWith("SYS:STOP")) {
+      analogWrite(RPWM, 0);
+      analogWrite(LPWM, 0);
+      analogWrite(pwmPin, 0);
+
+      digitalWrite(FR_CTRL, LOW);  // Safe default
+
+      currentActSpeed = 0;
+      currentPwm = 0;
+      currentDir = "STOP";
+      rpm = 0.0;
+
+      Serial.println("ACK:SYS:STOP");
+    }
+
     else {
       Serial.println("ERR:Unknown command");
     }
@@ -140,18 +156,17 @@ void loop() {
   }
 
   if (now - lastUpdateMillis > 1000) {
-    rpm = 0.0;  // Timeout → motor stopped
+    rpm = 0.0;
   }
 
   // 🔸 Structured telemetry output every 500 ms
   if (now - lastTelemetryMillis >= telemetryInterval) {
     lastTelemetryMillis = now;
 
-    // Throttle as 0–1 based on actuator speed (you can change this mapping later)
     float throttle = currentActSpeed / 255.0;
 
     Serial.print("TEL:RPM:");
-    Serial.print(rpm, 1);  // one decimal place
+    Serial.print(rpm, 1);
 
     Serial.print(" THR:");
     Serial.print(throttle, 2);
@@ -161,6 +176,5 @@ void loop() {
 
     Serial.print(" PWM:");
     Serial.println(currentPwm);
-    // Future: add VOLT: / TEMP: here when sensors exist
   }
 }
