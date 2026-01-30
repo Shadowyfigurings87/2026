@@ -11,13 +11,13 @@ from Rover1.ministries.arduino.state import (
 
 def parse_line(line: str):
     """
-    Parse a raw line from Arduino into a structured event dict.
+    Parse a raw line from Arduino into a structured JSON telemetry event.
 
-    Supported patterns:
-        HB:<value>              → heartbeat
-        ACK:<cmd>:<value>       → command acknowledgment
-        TEL:<k:v k:v ...>       → telemetry packet
-        anything else           → raw event
+    Converts legacy ASCII telemetry (TEL:...) into clean JSON fields:
+        rpm, throttle, direction, pwm
+
+    Removes all ASCII 'raw' pollution so the host ingestion pipeline
+    will always treat this as JSON telemetry.
     """
 
     now = time.time()
@@ -28,8 +28,8 @@ def parse_line(line: str):
     if line.startswith("HB:"):
         set_last_heartbeat_ts(now)
         return {
+            "ministry": "arduino",
             "event": "heartbeat",
-            "raw": line,
             "ts": now,
         }
 
@@ -42,18 +42,16 @@ def parse_line(line: str):
         cmd = parts[1] if len(parts) > 1 else None
         val = parts[2] if len(parts) > 2 else None
 
-        # Track ACK timestamp
         set_last_ack(line)
 
-        # Compute latency if possible
         cmd_ts = last_command_ts()
         latency = None
         if cmd_ts is not None:
             latency = now - cmd_ts
 
         return {
+            "ministry": "arduino",
             "event": "ack",
-            "raw": line,
             "ts": now,
             "command": cmd,
             "value": val,
@@ -61,10 +59,10 @@ def parse_line(line: str):
         }
 
     # ---------------------------------------------------------
-    # Telemetry (generic)
+    # TELEMETRY (ASCII → JSON conversion)
     # ---------------------------------------------------------
     if line.startswith("TEL:"):
-        # Example: TEL:RPM:123.4 V:11.8 I:0.42
+        # Example: TEL:RPM:123.4 THR:0.00 DIR:FWD PWM:120
         payload = line[4:].strip()
         fields = payload.split()
 
@@ -72,23 +70,37 @@ def parse_line(line: str):
         for f in fields:
             if ":" in f:
                 k, v = f.split(":", 1)
+                k = k.lower().strip()
+                v = v.strip()
+
+                # Convert numeric fields
                 try:
-                    data[k.lower()] = float(v)
+                    data[k] = float(v)
                 except ValueError:
-                    data[k.lower()] = v
+                    data[k] = v
+
+        # Normalize keys
+        rpm = data.get("rpm")
+        throttle = data.get("thr") or data.get("throttle")
+        direction = data.get("dir")
+        pwm = data.get("pwm")
 
         return {
+            "ministry": "arduino",
             "event": "telemetry",
-            "raw": line,
             "ts": now,
-            "data": data,
+            "rpm": rpm,
+            "throttle": throttle,
+            "direction": direction,
+            "pwm": pwm,
         }
 
     # ---------------------------------------------------------
-    # Fallback: raw line
+    # Fallback: ignore raw noise
     # ---------------------------------------------------------
     return {
+        "ministry": "arduino",
         "event": "raw",
-        "raw": line,
         "ts": now,
+        "line": line,
     }

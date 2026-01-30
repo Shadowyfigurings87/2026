@@ -55,36 +55,56 @@ def process_camera_frame(msg: dict):
 
 
 # ============================================================
-# ARDUINO MINISTRY (TEL parser → arduino_state)
+# ARDUINO MINISTRY (JSON-first, ASCII fallback)
 # ============================================================
 
 def process_arduino_frame(msg: dict):
     """
-    Parses Arduino telemetry frames of the form:
-        TEL:RPM:0.0 THR:0.00 DIR:STOP PWM:0
-
-    Extracts rpm, throttle, direction, pwm and upserts into arduino_state.
+    Unified Arduino telemetry handler.
+    Supports BOTH:
+      - JSON telemetry from Rover1
+      - Legacy ASCII TEL: telemetry from Arduino
     """
 
-    event = msg.get("event")
+    # -------------------------------------------------------
+    # 1. JSON TELEMETRY (preferred)
+    # -------------------------------------------------------
+    if all(k in msg for k in ("rpm", "throttle", "direction", "pwm")):
+        rpm = msg.get("rpm")
+        throttle = msg.get("throttle")
+        direction = msg.get("direction")
+        pwm = msg.get("pwm")
 
-    # Metrics frames from the Arduino ministry
-    if event == "ministry_metrics":
-        log_ingest("arduino_metrics", payload=msg)
+        ts_iso = (
+            msg.get("timestamp")
+            or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        )
+
+        log_ingest("arduino_json_telemetry", payload=msg)
+
+        upsert_arduino_state(
+            rpm=rpm,
+            throttle=throttle,
+            direction=direction,
+            pwm=pwm,
+            ts=ts_iso,
+            raw=msg,
+        )
         return
 
-    # Extract raw line
+    # -------------------------------------------------------
+    # 2. ASCII TELEMETRY (legacy fallback)
+    # -------------------------------------------------------
+
     raw_line = msg.get("raw") or msg.get("line") or msg.get("data")
     if not raw_line:
         log_ingest("arduino_frame_missing_raw", payload=msg)
         return
 
-    # Ensure TEL prefix
     if not raw_line.startswith("TEL"):
         log_ingest("arduino_frame_unparsed", raw=raw_line, payload=msg)
         return
 
-    # Remove TEL prefix and split into key:value parts
     parts = raw_line.replace("TEL:", "").strip().split()
 
     parsed = {}
@@ -93,7 +113,7 @@ def process_arduino_frame(msg: dict):
             continue
 
         key, value = part.split(":", 1)
-        key = key.strip().lower()  # rpm, thr, dir, pwm
+        key = key.strip().lower()
         value = value.strip()
 
         if key == "rpm":
@@ -117,25 +137,21 @@ def process_arduino_frame(msg: dict):
             except Exception:
                 parsed["pwm"] = None
 
-    # Ensure all fields exist
     parsed.setdefault("rpm", None)
     parsed.setdefault("throttle", None)
     parsed.setdefault("direction", None)
     parsed.setdefault("pwm", None)
 
-    # Timestamp
     ts_iso = (
         msg.get("timestamp")
         or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     )
 
-    # Log parsed frame
-    log_ingest("arduino_frame_parsed", payload={
+    log_ingest("arduino_frame_parsed_ascii", payload={
         "raw": raw_line,
         "parsed": parsed,
     })
 
-    # Upsert into arduino_state
     upsert_arduino_state(
         rpm=parsed["rpm"],
         throttle=parsed["throttle"],
