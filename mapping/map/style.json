@@ -1,0 +1,51 @@
+{
+  "version": 8,
+  "name": "Sovereign Rover Map",
+  "sources": {
+    "rover": {
+      "type": "vector",
+      "tiles": [
+        "http://localhost:8001/tiles/{z}/{x}/{y}.pbf"
+      ],
+      "minzoom": 0,
+      "maxzoom": 18
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#1d1f21"
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "rover",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "#3b8dd1"
+      }
+    },
+    {
+      "id": "landuse",
+      "type": "fill",
+      "source": "rover",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": "#2e2f31"
+      }
+    },
+    {
+      "id": "roads",
+      "type": "line",
+      "source": "rover",
+      "source-layer": "transportation",
+      "paint": {
+        "line-color": "#d0d0d0",
+        "line-width": 1.2
+      }
+    }
+  ]
+}

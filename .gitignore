@@ -142,3 +142,27 @@ host/data/frames/
 
 # Ignore root-level .txt files
 *.txt
+# Mapping artifacts
+mapping/**/*.mbtiles
+mapping/**/*.pbf
+mapping/**/*.osm.pbf
+mapping/**/*.geojson
+mapping/**/*.sqlite
+mapping/**/*.db
+mapping/**/*.jar
+mapping/**/*.zip
+mapping/**/*.tar
+mapping/**/*.tgz
+mapping/**/*.7z
+
+# Planetiler / Tilemaker / custom pipelines
+planetiler/
+tilemaker/
+*.mbtiles
+*.pbf
+*.osm.pbf
+*.jar
+
+# Python venvs
+venv/
+.env/
