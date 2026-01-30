@@ -1,4 +1,27 @@
-# --- Python artifacts ---
+# ============================
+# Planetiler / Map Data
+# ============================
+planetiler/
+data/
+*.mbtiles
+*.pbf
+*.osm.pbf
+*.tsv
+*.tsv.gz
+*.zip
+*.gz
+*.sqlite
+*.sqlite.zip
+*.db
+*.db-shm
+*.db-wal
+
+# Keep planetiler.jar (source artifact)
+!planetiler.jar
+
+# ============================
+# Python Artifacts
+# ============================
 __pycache__/
 *.py[cod]
 *.pyo
@@ -12,7 +35,9 @@ build/
 *.manifest
 *.spec
 
-# --- Virtual environments ---
+# ============================
+# Virtual Environments
+# ============================
 venv/
 .venv/
 env/
@@ -20,14 +45,18 @@ ENV/
 env.bak/
 env_old/
 
-# --- Logs & temp files ---
+# ============================
+# Logs & Temp Files
+# ============================
 *.log
 *.tmp
 *.temp
 *.out
 *.err
 
-# --- Unit test / coverage reports ---
+# ============================
+# Unit Test / Coverage
+# ============================
 .coverage
 coverage/
 htmlcov/
@@ -40,11 +69,15 @@ coverage.xml
 *.py,cover
 *.hypothesis/
 
-# --- Jupyter notebooks ---
+# ============================
+# Jupyter
+# ============================
 .ipynb_checkpoints/
 *.ipynb
 
-# --- IDE/editor configs ---
+# ============================
+# IDE / Editor
+# ============================
 .vscode/
 .idea/
 *.swp
@@ -52,41 +85,41 @@ coverage.xml
 *.bak
 *.orig
 
-# --- OS-specific clutter ---
+# ============================
+# OS Clutter
+# ============================
 .DS_Store
 Thumbs.db
 Desktop.ini
 
-# --- Git / version control ---
+# ============================
+# Git
+# ============================
 .git/
 .gitignore
 .gitattributes
 .gitmodules
 
-# --- Package managers ---
+# ============================
+# Node / JS (if any)
+# ============================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# --- Docker / container ---
+# ============================
+# Docker
+# ============================
 *.pid
 *.seed
 *.pid.lock
 docker-compose.override.yml
 
-# --- Misc build artifacts ---
-*.db
-*.sqlite
-*.sqlite3
-*.tar
-*.zip
-*.gz
-*.tgz
-*.rar
-
-# --- Security ---
+# ============================
+# Security
+# ============================
 *.pem
 *.key
 *.crt
@@ -94,22 +127,18 @@ docker-compose.override.yml
 *.der
 *.csr
 
-# --- Other common clutter ---
-*.bak
+# ============================
+# Misc Clutter
+# ============================
 *.old
 *.save
-*.swp
-*.swo
-*.tmp
-*.temp
 
-# --- Custom project artifacts ---
-.txt   # ignore the root-level .txt file
-# SQLite databases
-*.db
-*.db-shm
-*.db-wal
-# Ignore frame store
+# ============================
+# Custom Project Artifacts
+# ============================
 host/data/frames/
 *.jpg
 *.jpeg
+
+# Ignore root-level .txt files
+*.txt

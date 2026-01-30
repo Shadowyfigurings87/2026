@@ -69,6 +69,17 @@ def _init_tables(conn):
         )
     """)
 
+    # GPS positions (breadcrumb trail)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS gps_positions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts REAL,
+            timestamp TEXT,
+            lat REAL,
+            lon REAL
+        )
+    """)
+
     conn.commit()
 
 
@@ -176,4 +187,21 @@ def upsert_arduino_state(rpm: float, throttle: float, direction: str, pwm: float
             raw = excluded.raw
         """,
         (rpm, throttle, direction, pwm, ts, json.dumps(raw)),
+    ))
+
+
+# ============================================================
+# GPS POSITION INSERT
+# ============================================================
+
+def insert_gps_position(lat: float, lon: float, ts: float, timestamp: str):
+    """
+    Insert a GPS coordinate into gps_positions.
+    """
+    write_queue.put((
+        """
+        INSERT INTO gps_positions (ts, timestamp, lat, lon)
+        VALUES (?, ?, ?, ?)
+        """,
+        (ts, timestamp, lat, lon),
     ))

@@ -18,6 +18,7 @@ if (!window.createWindow) {
 // =======================================================
 // IMPORT WINDOW MANAGER (guaranteed to overwrite stubs)
 // =======================================================
+// (unchanged – whatever you already have here stays)
 
 
 // =======================================================
@@ -89,11 +90,18 @@ async function initializePanel(name) {
                 window.initCameraPanel();
             }
             break;
+
         case "esp32":
             await import("/static/js/panels/esp32.js");
             if (typeof window.initESP32Panel === "function") {
                 window.initESP32Panel();
             }
+            break;
+
+        case "gps":
+            // Leaf core should already be loaded via <script type="module" src="/static/js/leaf/leaf.js">
+            await import("/static/js/panels/gps_map.js");
+            // gps_map.js self-initializes on DOMContentLoaded, so no explicit init call needed here
             break;
     }
 }

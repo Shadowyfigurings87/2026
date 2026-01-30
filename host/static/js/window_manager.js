@@ -44,16 +44,15 @@ function createWindow(name, html) {
         <div class="resize-handle resize-s"></div>
     `;
 
-    // Close button
-win.querySelector(".window-close").onclick = () => {
-    win.remove();
-    if (window.clearActivePanel) window.clearActivePanel(name);
+    // Close button with cleanup hook
+    win.querySelector(".window-close").onclick = () => {
+        win.remove();
+        if (window.clearActivePanel) window.clearActivePanel(name);
 
-    // NEW: panel-specific cleanup
-    const stopFn = window[`stop${name.charAt(0).toUpperCase() + name.slice(1)}Panel`];
-    if (typeof stopFn === "function") stopFn();
-};
-
+        // Panel-specific cleanup (stopTelemetryPanel, stopGpsPanel, etc.)
+        const stopFn = window[`stop${name.charAt(0).toUpperCase() + name.slice(1)}Panel`];
+        if (typeof stopFn === "function") stopFn();
+    };
 
     makeDraggable(win);
     makeResizable(win);
@@ -155,7 +154,6 @@ async function openPanel(name) {
 
     return win;
 }
-
 
 // =======================================================
 // EXPORT GLOBALS

@@ -187,6 +187,42 @@ def process_watchdog(msg: dict):
 
 
 # ============================================================
+# GPS MINISTRY
+# ============================================================
+
+def process_gps_frame(msg: dict):
+    """
+    Handles GPS JSON telemetry:
+      {
+        "ministry": "gps",
+        "event": "position",
+        "lat": <float>,
+        "lon": <float>,
+        "ts": <float>,
+        "timestamp": "ISO8601"
+      }
+    """
+
+    lat = msg.get("lat")
+    lon = msg.get("lon")
+    ts = msg.get("ts")
+    timestamp = msg.get("timestamp") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    log_ingest("gps_position", payload={
+        "lat": lat,
+        "lon": lon,
+        "ts": ts,
+        "timestamp": timestamp,
+    })
+
+    try:
+        from host.services.db_writer import insert_gps_position
+        insert_gps_position(lat=lat, lon=lon, ts=ts, timestamp=timestamp)
+    except Exception as e:
+        log_ingest("gps_db_write_failed", error=str(e), payload=msg)
+
+
+# ============================================================
 # WORKER LOOP
 # ============================================================
 
@@ -220,6 +256,9 @@ def worker_loop():
 
             elif ministry == "watchdog":
                 process_watchdog(msg)
+
+            elif ministry == "gps":
+                process_gps_frame(msg)
 
             else:
                 log_ingest("ingest_unknown_ministry", ministry=ministry, payload=msg)

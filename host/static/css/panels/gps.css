@@ -1,0 +1,42 @@
+/* static/css/panels/gps.css */
+
+.panel-gps {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #111;
+    color: #eee;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.panel-gps .panel-header {
+    padding: 6px 10px;
+    background: #181818;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.panel-gps .panel-title {
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.panel-gps .panel-subtitle {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.panel-gps .panel-body {
+    flex: 1;
+    position: relative;
+}
+
+#gps-map {
+    position: absolute;
+    inset: 0;
+}

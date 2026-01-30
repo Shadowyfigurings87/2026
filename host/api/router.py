@@ -18,21 +18,17 @@ from host.api.system import router as system_router
 from host.api.dashboard import router as dashboard_router
 from host.api.esp32 import router as esp32_router
 from host.services.command_pipeline.command_api_v2 import router as command_v2_router
-
+from host.api.routes_gps import router as gps_router   # ⭐ FIXED
 
 def create_api():
     app = FastAPI(title="Rover1 Host API", version="1.0.0")
 
-    # ---------------------------------------------------------
-    # STATIC + TEMPLATE MOUNTS (correct absolute paths)
-    # ---------------------------------------------------------
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     STATIC_DIR = os.path.join(BASE_DIR, "static")
     TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     templates = Jinja2Templates(directory=TEMPLATE_DIR)
-
 
     # ---------------------------------------------------------
     # MINISTRY ROUTERS
@@ -45,11 +41,14 @@ def create_api():
     app.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
     app.include_router(esp32_router, prefix="/esp32", tags=["esp32"])
     app.include_router(command_v2_router)
+
+    # ⭐ NEW GPS ROUTER
+    app.include_router(gps_router, prefix="/gps", tags=["gps"])
+
     # ---------------------------------------------------------
     # CAMERA MJPEG ENDPOINT
     # ---------------------------------------------------------
     register_routes(app)
-
     app.include_router(camera_router, prefix="/camera")
 
     # ---------------------------------------------------------
@@ -59,6 +58,5 @@ def create_api():
     app.mount("/metrics", metrics_app)
 
     return app
-
 
 app = create_api()

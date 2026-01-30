@@ -124,9 +124,6 @@ def get_arduino_state() -> Optional[dict]:
 # ============================================================
 
 def get_latest_arduino_state() -> Optional[dict]:
-    """
-    Returns the latest decoded Arduino state from arduino_state.
-    """
     conn = _connect()
     cur = conn.cursor()
 
@@ -158,9 +155,6 @@ def get_latest_arduino_state() -> Optional[dict]:
 
 
 def get_latest_arduino_raw() -> Optional[sqlite3.Row]:
-    """
-    Returns the latest raw Arduino telemetry row from telemetry_raw.
-    """
     conn = _connect()
     cur = conn.cursor()
 
@@ -208,6 +202,58 @@ def get_esp32_state() -> Optional[dict]:
         "ts": row["ts"],
         "raw": raw,
     }
+
+
+# ============================================================
+# GPS MINISTRY (new)
+# ============================================================
+
+def get_latest_gps() -> Optional[dict]:
+    conn = _connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT lat, lon, timestamp
+        FROM gps_positions
+        ORDER BY id DESC
+        LIMIT 1
+    """)
+
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return {
+        "lat": row["lat"],
+        "lon": row["lon"],
+        "timestamp": row["timestamp"],
+    }
+
+
+def get_gps_history(limit: int = 500) -> List[dict]:
+    conn = _connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT lat, lon, timestamp
+        FROM gps_positions
+        ORDER BY id DESC
+        LIMIT ?
+    """, (limit,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return [
+        {
+            "lat": r["lat"],
+            "lon": r["lon"],
+            "timestamp": r["timestamp"],
+        }
+        for r in rows
+    ]
 
 
 # ============================================================

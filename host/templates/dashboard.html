@@ -3,7 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <title>Rover Mission Control</title>
+
+    <!-- Core Dashboard Styles -->
     <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <!-- GPS Panel Styles -->
+    <link rel="stylesheet" href="/static/css/panels/gps.css">
+
+    <!-- ⭐ Replace Mapbox-GL with MapLibre-GL -->
+    <link href="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@3.6.0/dist/maplibre-gl.js"></script>
+
+    <!-- Leaf Core (GLOBAL, NOT A MODULE) -->
+    <script src="/static/js/leaf/leaf.js"></script>
 </head>
 
 <body>
@@ -28,7 +40,6 @@
 
 </div>
 
-
 <!-- SIDEBAR -->
 <nav id="sidebar">
     <ul>
@@ -39,14 +50,23 @@
         <li onclick="openPanel('system')">System</li>
         <li onclick="openPanel('events')">Events</li>
         <li onclick="openPanel('esp32')">ESP32</li>
+
+        <!-- ⭐ NEW GPS PANEL -->
+        <li onclick="openPanel('gps')">GPS / Map</li>
     </ul>
 </nav>
 
 <!-- FLOATING WINDOW CONTAINER -->
 <div id="window-area"></div>
 
+<!-- Window Manager -->
 <script src="/static/js/window_manager.js"></script>
+
+<!-- Dashboard Core -->
 <script src="/static/js/dashboard.js"></script>
+
+<!-- GPS Map Panel (MODULE OK) -->
+<script type="module" src="/static/js/panels/gps_map.js"></script>
 
 </body>
 </html>
