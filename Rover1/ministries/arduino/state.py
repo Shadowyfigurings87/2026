@@ -12,13 +12,16 @@ def set_arduino_ready():
 # ---------------------------------------------------------
 # Serial handle + lock
 # ---------------------------------------------------------
-ser = None
+_ser = None
 serial_lock = threading.Lock()
 
+def ser():
+    return _ser
+
 def set_serial_handle(handle):
-    global ser
+    global _ser
     with serial_lock:
-        ser = handle
+        _ser = handle
 
 
 # ---------------------------------------------------------

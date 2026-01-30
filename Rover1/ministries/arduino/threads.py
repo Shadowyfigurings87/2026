@@ -8,6 +8,7 @@ from Rover1.ministries.arduino.state import (
     metrics,
     last_heartbeat_ts,
     set_last_heartbeat_ts,
+    set_serial_handle,      # NEW: import the setter
 )
 from Rover1.ministries.arduino.serial_link import open_serial_port
 from Rover1.ministries.arduino.parser import parse_line
@@ -33,6 +34,9 @@ def arduino_reader_thread():
 
                 ser = open_serial_port()
                 print("[Arduino] Serial port opened successfully")
+
+                # NEW: store handle globally so commands can reuse it
+                set_serial_handle(ser)
 
                 # Mark Arduino ministry as ready
                 from Rover1.ministries.arduino.state import set_arduino_ready

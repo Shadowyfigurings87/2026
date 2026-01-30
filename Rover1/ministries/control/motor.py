@@ -24,14 +24,17 @@ def _safe_set_direction(new_direction: str):
 
     if new_direction == "forward":
         send_arduino_command("DIR:FWD")
+
     elif new_direction == "reverse":
         send_arduino_command("DIR:REV")
+
     elif new_direction == "stop":
         send_arduino_command("ACT:STOP")
         send_arduino_command("PWM:0")
         _current_pwm = 0
         _current_direction = "stop"
         return True
+
     else:
         print(f"[Motor] Invalid direction: {new_direction}")
         return False
@@ -51,20 +54,22 @@ def _set_pwm(pwm_value: int):
 # PUBLIC MOTOR MINISTRY ENTRY POINT
 # ============================================================
 
-def apply_motor_command(throttle: float, direction: str):
+def apply_motor_command(throttle: float | None, direction: str | None):
     """
     Unified motor control interface for the new command pipeline.
 
-    throttle: 0.0 → 1.0
-    direction: "forward", "reverse", "stop"
+    throttle: 0.0 → 1.0 or None
+    direction:
+        "forward"  → set forward
+        "reverse"  → set reverse
+        "stop"     → stop immediately
+        None       → keep current direction
     """
 
-    # Clamp throttle
-    throttle = max(0.0, min(throttle, 1.0))
-    pwm_value = int(throttle * 255)
+    global _current_direction
 
     # ---------------------------------------------------------
-    # Handle STOP immediately
+    # STOP overrides everything
     # ---------------------------------------------------------
     if direction == "stop":
         print("[Motor] STOP command received")
@@ -72,18 +77,24 @@ def apply_motor_command(throttle: float, direction: str):
         return
 
     # ---------------------------------------------------------
-    # Handle direction with safety
+    # If direction is explicitly given, update it
     # ---------------------------------------------------------
-    if not _safe_set_direction(direction):
-        print("[Motor] Direction change blocked for safety")
-        return
+    if direction is not None:
+        if not _safe_set_direction(direction):
+            print("[Motor] Direction change blocked for safety")
+            return
+        print(f"[Motor] Direction updated to {_current_direction}")
 
     # ---------------------------------------------------------
-    # Apply PWM
+    # Apply PWM only if throttle is provided
     # ---------------------------------------------------------
-    _set_pwm(pwm_value)
-
-    print(f"[Motor] Applied: direction={direction}, pwm={pwm_value}")
+    if throttle is not None:
+        throttle = max(0.0, min(throttle, 1.0))
+        pwm_value = int(throttle * 255)
+        _set_pwm(pwm_value)
+        print(f"[Motor] Applied: direction={_current_direction}, pwm={pwm_value}")
+    else:
+        print(f"[Motor] No throttle change, direction={_current_direction}")
 
 
 # ============================================================

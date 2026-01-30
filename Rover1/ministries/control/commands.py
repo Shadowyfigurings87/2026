@@ -3,10 +3,10 @@
 import time
 
 from Rover1.ministries.arduino.state import (
-    ser,                    # function returning the serial handle
-    serial_lock,            # Lock object
+    ser,                    # now a function returning the serial handle
+    serial_lock,            # a Lock object, NOT callable
     set_last_command,
-    get_metrics,            # function returning the metrics dict
+    get_metrics,            # use accessor for metrics dict
 )
 from Rover1.ministries.arduino.serial_link import open_serial_port
 
@@ -38,6 +38,12 @@ def _ensure_serial():
 def send_arduino_command(msg: str):
     """
     Unified command uplink for all ministries.
+
+    This function:
+      - ensures the serial port is open
+      - writes the command with newline termination
+      - updates command tracking (for ACK latency)
+      - updates metrics on error
     """
 
     handle = _ensure_serial()
@@ -49,7 +55,7 @@ def send_arduino_command(msg: str):
         return
 
     try:
-        # serial_lock is a Lock object, so use it directly
+        # serial_lock is a Lock object, so we use it directly
         with serial_lock:
             handle.write((msg + "\n").encode("utf-8"))
             handle.flush()
