@@ -1,0 +1,7 @@
+{
+  "layer": "water",
+  "geometry": "polygon",
+  "fields": [],
+  "minzoom": 0,
+  "maxzoom": 18
+}
