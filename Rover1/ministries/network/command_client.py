@@ -72,7 +72,7 @@ print("[CommandClient/DEBUG] arduino_commands.send_arduino_command:",
 # ============================================================
 
 COMMAND_HOST = "8.tcp.ngrok.io"
-COMMAND_PORT = 15822
+COMMAND_PORT = 17517
 
 RECONNECT_DELAY = 3.0
 BUFFER_SIZE = 4096

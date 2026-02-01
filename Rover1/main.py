@@ -17,8 +17,8 @@ from gps_server import app as gps_app   # your renamed file
 
 
 # Telemetry tunnel (ngrok A)
-TELEMETRY_HOST = "8.tcp.ngrok.io"
-TELEMETRY_PORT = 10214
+TELEMETRY_HOST = "0.tcp.ngrok.io"
+TELEMETRY_PORT = 19684
 
 
 def start_gps_server():

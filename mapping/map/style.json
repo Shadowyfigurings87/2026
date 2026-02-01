@@ -1,19 +1,22 @@
 {
   "version": 8,
   "name": "Sovereign Florida",
-  "glyphs": "http://localhost:8080/fonts/{fontstack}/{range}.pbf",
-  "sprite": "http://localhost:8080/sprites/sprite",
+
+  "glyphs": "http://localhost:5000/fonts/{fontstack}/{range}.pbf",
+  "sprite": "http://localhost:5000/sprites/sprite",
+
   "sources": {
     "sovereign": {
       "type": "vector",
       "tiles": [
-        "http://localhost:8080/tiles/{z}/{x}/{y}.pbf"
+        "http://localhost:5000/tiles/{z}/{x}/{y}.pbf"
       ],
       "minzoom": 0,
       "maxzoom": 18,
       "scheme": "xyz",
       "bounds": [-88.0, 24.0, -79.0, 32.0]
     },
+
     "rover": {
       "type": "geojson",
       "data": {
