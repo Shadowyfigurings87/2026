@@ -166,3 +166,15 @@ tilemaker/
 # Python venvs
 venv/
 .env/
+# Sovereign mapping stack (never tracked)
+mapping/
+mapping/*
+
+# Agent build + runtime artifacts (never tracked)
+agent/
+agent/*
+
+# Host DBs and telemetry
+host/*.db
+host/*.sqlite
+host/*.sqlite3
