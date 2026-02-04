@@ -10,11 +10,6 @@ data/
 *.tsv.gz
 *.zip
 *.gz
-*.sqlite
-*.sqlite.zip
-*.db
-*.db-shm
-*.db-wal
 
 # Keep planetiler.jar (source artifact)
 !planetiler.jar
@@ -93,15 +88,13 @@ Thumbs.db
 Desktop.ini
 
 # ============================
-# Git
+# Git metadata (safe)
 # ============================
-.git/
-.gitignore
 .gitattributes
 .gitmodules
 
 # ============================
-# Node / JS (if any)
+# Node / JS
 # ============================
 node_modules/
 npm-debug.log*
@@ -140,41 +133,4 @@ host/data/frames/
 *.jpg
 *.jpeg
 
-# Ignore root-level .txt files
-*.txt
-# Mapping artifacts
-mapping/**/*.mbtiles
-mapping/**/*.pbf
-mapping/**/*.osm.pbf
-mapping/**/*.geojson
-mapping/**/*.sqlite
-mapping/**/*.db
-mapping/**/*.jar
-mapping/**/*.zip
-mapping/**/*.tar
-mapping/**/*.tgz
-mapping/**/*.7z
-
-# Planetiler / Tilemaker / custom pipelines
-planetiler/
-tilemaker/
-*.mbtiles
-*.pbf
-*.osm.pbf
-*.jar
-
-# Python venvs
-venv/
-.env/
-# Sovereign mapping stack (never tracked)
-mapping/
-mapping/*
-
-# Agent build + runtime artifacts (never tracked)
-agent/
-agent/*
-
-# Host DBs and telemetry
-host/*.db
-host/*.sqlite
-host/*.sqlite3
+# Ignore

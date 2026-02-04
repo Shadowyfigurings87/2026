@@ -1,7 +1,0 @@
-{
-  "layer": "roads",
-  "geometry": "line",
-  "fields": ["class"],
-  "minzoom": 6,
-  "maxzoom": 18
-}

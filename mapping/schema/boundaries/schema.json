@@ -1,7 +1,0 @@
-{
-  "layer": "boundaries",
-  "geometry": "line",
-  "fields": ["admin_level"],
-  "minzoom": 4,
-  "maxzoom": 12
-}
