@@ -1,7 +1,7 @@
 # Rover1/ministries/camera/config.py
 
-HOST = "2.tcp.ngrok.io"      # or whatever ngrok endpoint maps to camera host
-PORT = 11429                 # camera listener on host
+HOST = "0.tcp.ngrok.io"      # or whatever ngrok endpoint maps to camera host
+PORT = 17193                 # camera listener on host
 
 RESOLUTION = (640, 480)
 QUALITY = 80
